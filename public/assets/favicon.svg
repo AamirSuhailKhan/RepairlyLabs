@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="phoneGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#122538"/>
+      <stop offset="100%" stop-color="#081420"/>
+    </linearGradient>
+    <linearGradient id="wrenchGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff7f5d"/>
+      <stop offset="100%" stop-color="#fb6948"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="#08121f"/>
+  <!-- Sleek smartphone silhouette -->
+  <rect x="9" y="8" width="28" height="48" rx="6" fill="url(#phoneGrad)" stroke="#ffffff" stroke-width="2.6"/>
+  <!-- Phone screen speaker slot -->
+  <line x1="18" y1="14" x2="28" y2="14" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/>
+  <!-- Screen home indicator -->
+  <line x1="19" y1="50" x2="27" y2="50" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+  <!-- Screen subtle glow / display line -->
+  <rect x="13" y="18" width="20" height="28" rx="2" fill="#8ce7d5" fill-opacity="0.12"/>
+  <!-- Precision repair wrench (integrated diagonally across device) -->
+  <g transform="translate(14, 2) scale(1.9)">
+    <path d="M21 3a6 6 0 0 1-8 7L5 18a3 3 0 1 0 4 4l8-8a6 6 0 0 0 4-11Z" fill="url(#wrenchGrad)" stroke="#ffffff" stroke-width="1.1" stroke-linejoin="round"/>
+  </g>
+  <!-- Radiant spark node / repair point -->
+  <circle cx="51" cy="13" r="2.8" fill="#ffffff"/>
+  <circle cx="51" cy="13" r="1.3" fill="#fb6948"/>
+</svg>

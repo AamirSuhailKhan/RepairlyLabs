@@ -1,0 +1,5 @@
+import { mkdirSync, copyFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+const dir = process.env.DATA_DIR || join(process.cwd(), 'data'); const source = join(dir, 'repairlylabs.sqlite'); if (!existsSync(source)) { console.error('No database found.'); process.exit(1); }
+const folder = join(dir, 'backups'); mkdirSync(folder, { recursive: true }); const dest = join(folder, `repairlylabs-${new Date().toISOString().replace(/[:.]/g, '-')}.sqlite`); const db = new DatabaseSync(source); db.exec(`VACUUM INTO '${dest.replaceAll("'", "''")}'`); db.close(); console.log('Backup:', dest);
