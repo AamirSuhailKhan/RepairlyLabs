@@ -77,7 +77,7 @@ The automated test creates its own temporary database and checks core public/adm
 2. Owner receives the request in **/admin → Parts orders**. Owner verifies exact device variant, part grade, stock, warranty, price and method of fulfillment with customer.
 3. Owner updates product inventory from sample to verified. On changing an order from **Pending → Confirmed**, the server ensures all parts are active, verified, priced the same as originally requested, and available. It then deducts stock in one transaction.
 4. Owner may advance to `in_progress → ready → completed`. Cancelling a confirmed/in-progress/ready order restores stock; completed orders cannot be cancelled through the status UI.
-5. Customers can check status using **Track request**, entering reference `KP-...` (part) or `KM-...` (repair) and their original phone number.
+5. Customers can check status using **Track request**, entering reference `RLP-...` (part) or `RLM-...` (repair) and their original phone number (older `KP-...` and `KM-...` references remain supported).
 
 **If the price changes after submission**, contact the customer, cancel the old request, and ask them to submit a fresh order after updating the product listing. Avoid collecting payment based only on the example website total.
 
@@ -133,18 +133,27 @@ This creates a consistent SQLite `VACUUM INTO` backup under `data/backups` (or `
 repairlylabs/
 ├── public/
 │   ├── index.html, app.js, styles.css, manifest.webmanifest
-│   └── assets/favicon.svg
+│   ├── assets/favicon.svg
+│   └── repair-center/    # Customer portal & Live Repair Desk
+│       ├── index.html, app.js, style.css
 ├── src/
 │   ├── data.mjs          # schema, seed, security helpers
+│   ├── repair-reference.mjs # unique non-reusable reference ID generator
+│   ├── repair-center.mjs # quotes, approvals, live inbox & Razorpay payments
 │   └── server.mjs        # API, static server, auth, status workflows
 ├── scripts/
 │   ├── setup.mjs         # first admin account
 │   └── backup.mjs
-├── tests/smoke.test.mjs
+├── tests/
+│   ├── intake.test.mjs   # reference reservation tests
+│   ├── repair-center.test.mjs # repair lifecycle & payments
+│   ├── smoke.test.mjs    # customer + admin journeys
+│   └── audit_suite.mjs   # 23-point security audit
 ├── deploy/
 ├── docs/
 ├── data/                 # ignored, persistent SQLite DB created on first boot
 ├── .env.example
+├── .env.addon.example
 └── package.json
 ```
 
@@ -152,8 +161,8 @@ repairlylabs/
 
 - **Not a real warehouse feed:** no supplier inventory, OEM integration, marketplace sync or guaranteed nationwide phone compatibility. Models are seeded suggestions and the inventory is demonstrative.
 - **Not an automatic technician or diagnostic engine:** repairs are manually assessed and quoted by a real team.
-- **No payment processing:** order flow is request/confirmation, not prepaid commerce. If you need online payments, integrate a compliant provider, verify webhooks server-side, and test refunds before launch.
-- **No automatic SMS, email or WhatsApp notifications by default:** optional webhook can connect your chosen provider, but delivery and consent requirements must be configured by the business.
+- **Payment processing:** RepairlyLabs V2 includes integrated Razorpay payment gateway support for repair advance deposits and final balances (requires configuring your Razorpay API keys in `.env`).
+- **No automatic SMS, email or WhatsApp notifications by default:** optional webhooks, Resend email and WhatsApp Meta Cloud API can be connected via `.env`, but delivery and consent requirements must be configured by the business.
 - **No customer login, multi-employee roles, invoicing/GST logic, multi-branch inventory, shipping-rate integration, or return/refund workflow**. These are separate modules if the operation requires them.
 - **Single-instance SQLite recommended.** For high traffic or multiple servers, migrate to PostgreSQL with migrations and a proper deployment pipeline.
 - **Privacy/legal text is a starter**, not legal advice. You need to establish an accurate retention schedule and required policies for your business.
