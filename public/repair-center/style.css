@@ -37,26 +37,28 @@ svg{display:inline-block;vertical-align:middle;flex-shrink:0}
    ══════════════════════════════════ */
 .navbar{
   position:fixed;z-index:60;
-  left:16px;right:16px;top:14px;
+  top:16px;left:0;right:0;margin:0 auto;
+  width:min(1120px, calc(100% - 32px));
   height:62px;
   border-radius:999px;
-  transition:all .3s cubic-bezier(.4,0,.2,1);
-  background:#09141fcc;
-  border:1px solid #ffffff18;
-  backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
-  box-shadow:0 8px 32px #00000030;
+  transition:all .25s cubic-bezier(.4,0,.2,1);
+  background:rgba(9, 20, 32, 0.88);
+  border:1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  box-shadow:0 12px 35px rgba(0, 0, 0, 0.35);
+  padding:0 12px 0 16px;
+  box-sizing:border-box;
 }
 .navbar.scrolled{
   top:10px;height:58px;
-  background:#0a1724ef;
-  border-color:#ffffff22;
-  box-shadow:0 12px 40px #00000040;
+  background:rgba(10, 23, 36, 0.95);
+  border-color:rgba(255, 255, 255, 0.2);
+  box-shadow:0 16px 45px rgba(0, 0, 0, 0.45);
 }
 
 .nav-shell{
-  height:100%;display:flex;
-  justify-content:space-between;align-items:center;gap:25px;
-  padding:0 10px 0 6px;
+  height:100%;width:100%;
+  display:flex;justify-content:space-between;align-items:center;gap:20px;
 }
 .container{max-width:var(--container);padding:0 28px;margin:auto}
 
@@ -264,19 +266,24 @@ footer{padding:28px;text-align:center;color:var(--slate);font-size:.82rem}
   .nav-links{display:none}
   .mobile-trigger{display:grid;place-items:center}
   body{padding-top:80px}
-  .navbar{left:12px;right:12px;top:10px;height:56px}
+  .navbar{top:12px;width:calc(100% - 24px);height:56px;padding:0 8px 0 12px}
   .navbar.scrolled{height:52px}
   .mobile-nav.open{display:flex}
 }
 /* Mobile nav floats below pill */
 .mobile-nav{
-  position:fixed;top:80px;left:12px;right:12px;
-  background:#0b1a28e8;
-  backdrop-filter:blur(20px);
-  border:1px solid #ffffff18;
+  display:none;
+  position:fixed;top:76px;left:0;right:0;margin:0 auto;
+  width:min(1120px, calc(100% - 24px));
+  background:#0b1a28f5;
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border:1px solid rgba(255,255,255,0.16);
   border-radius:20px;
-  padding:12px 18px 18px;
-  box-shadow:0 12px 40px #00000050;
+  padding:14px 20px 20px;
+  box-shadow:0 16px 48px rgba(0,0,0,0.55);
+  flex-direction:column;
+  gap:0;
+  z-index:59;
 }
 @media(max-width:620px){
   main{padding:0 16px;margin-top:20px}
