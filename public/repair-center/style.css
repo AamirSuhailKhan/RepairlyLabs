@@ -1,2 +1,205 @@
-:root{font-family:Inter,system-ui,sans-serif;color:#172538;background:#f3f6f9;--accent:#087b75;--line:#dce5eb}*{box-sizing:border-box}body{margin:0}header{display:flex;justify-content:space-between;align-items:center;padding:18px max(5vw,20px);background:#102535;color:#fff;gap:16px;flex-wrap:wrap}a{color:var(--accent);text-decoration:none;font-weight:650}header a{color:#e7f5f4}.brand{letter-spacing:-1.5px;font-size:26px;font-weight:850}.brand span{color:#55dcc1}nav{display:flex;gap:20px;font-size:13px;flex-wrap:wrap}main{max-width:1160px;margin:36px auto;padding:0 20px;min-height:72vh}h1{font-size:clamp(28px,4vw,44px);letter-spacing:-1.7px;line-height:1.1;margin:8px 0 14px}h2{font-size:21px;margin:0 0 16px}h3{font-size:16px}p{line-height:1.6}small,.muted{color:#607487}.eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:2px;color:var(--accent);font-weight:800}.panel{background:white;border:1px solid var(--line);padding:24px;border-radius:18px;margin:16px 0;box-shadow:0 8px 30px #10253508;animation:appear .25s ease-out}.split{display:grid;grid-template-columns:1fr 1fr;gap:20px}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.row>*{min-width:0}.row .grow{flex:1}.stack{display:grid;gap:14px}label{display:grid;gap:6px;font-size:13px;font-weight:650}input,textarea,select,button{font:inherit}input,textarea,select{width:100%;padding:11px 12px;border:1px solid #c8d6df;border-radius:9px;background:#fff;color:#172538}input[type=checkbox]{width:auto}textarea{resize:vertical;min-height:82px}button,.btn{background:var(--accent);border:0;border-radius:10px;padding:11px 16px;color:white;font-weight:700;cursor:pointer;display:inline-block}button.secondary,.btn.secondary{background:#e8eff2;color:#172538}button:disabled{opacity:.45;cursor:not-allowed}.pill{display:inline-block;background:#e0f4ed;color:#08634f;border-radius:99px;padding:6px 11px;font-size:12px;font-weight:750}.sum{font-size:36px;font-weight:800;letter-spacing:-1px}.divider{border-top:1px solid var(--line);margin:14px 0}.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;text-align:left;font-size:14px}td,th{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}th{color:#607487;font-size:12px}td button{white-space:nowrap}.line-item{display:grid;grid-template-columns:minmax(100px,1fr) 80px 125px auto;gap:8px;margin:8px 0;align-items:end}.timeline{border-left:2px solid #b1d9d0;margin-left:8px;padding-left:18px}.timeline p{margin:0 0 16px;overflow-wrap:anywhere}.warn{background:#fff4dd;padding:12px;border-radius:10px;color:#674700}.error{color:#a02736}#toast{position:fixed;bottom:20px;right:20px;max-width:calc(100% - 40px);background:#102535;color:#fff;border-radius:12px;padding:14px;display:none;z-index:10}footer{padding:24px;text-align:center;color:#647584;font-size:13px}pre{white-space:pre-wrap;overflow-wrap:anywhere}.check{display:flex;gap:8px;align-items:center}.invoice{max-width:850px;margin:auto}@keyframes appear{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}@media(max-width:720px){.split{grid-template-columns:1fr}main{margin-top:24px}.panel{padding:16px}.line-item{grid-template-columns:1fr 60px 100px auto}.line-item button{padding:10px 8px}}@media(prefers-reduced-motion:reduce){*{animation:none!important}}@media print{header,footer,button,.no-print,#toast{display:none!important}body{background:white}main{margin:0;padding:0}.panel{border:0;box-shadow:none;animation:none}.invoice{max-width:none}}
-.inbox-table{min-width:890px}.inbox-table td{max-width:230px;overflow-wrap:anywhere}.inbox-table td small{white-space:pre-wrap}.new-pill{display:inline-block;background:#fff1d2;color:#895100;padding:3px 7px;border-radius:6px;font-size:10px;font-weight:800}.inbox-pages{justify-content:space-between;margin-top:16px}.intake-fields{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 0 18px}.intake-fields div{border-bottom:1px solid var(--line);padding:0 0 9px;min-width:0}.intake-fields dt{font-size:12px;color:#607487;margin-bottom:5px}.intake-fields dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-weight:600}.intake-actions{margin-bottom:10px}#inbox-count{color:#7cf2d6;font-weight:800}@media(max-width:500px){.intake-fields{grid-template-columns:1fr}}
+/* ===== RepairlyLabs — Repair Center (design-synced with main site) ===== */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&display=swap');
+
+:root{
+  --ink:#0a1826;--ink2:#18283a;--dark:#07121d;--dark2:#0d2030;
+  --orange:#fb6948;--orange2:#ff8d5f;--mint:#8ce7d5;
+  --cream:#faf8f4;--bg:#f6f7f8;--slate:#647384;
+  --line:#e4e9ed;--white:#fff;
+  --shadow:0 20px 70px rgba(19,30,44,.09);
+  --accent:#fb6948;
+  --font:'DM Sans',system-ui,Arial,sans-serif;
+  --display:'Space Grotesk',system-ui,sans-serif;
+  --radius:18px;--container:1220px;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;color:var(--ink);background:var(--bg);font-family:var(--font);-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none;font-weight:600}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer;border:0}
+button:disabled{opacity:.5;cursor:not-allowed}
+input,select,textarea{outline-color:var(--orange)}
+h1,h2,h3,h4,p{margin-top:0}
+h1,h2,h3,h4{font-family:var(--display);letter-spacing:-.045em}
+h1{font-size:clamp(2rem,4vw,3rem);line-height:1.1;margin:8px 0 14px}
+h2{font-size:1.4rem;margin:0 0 16px}
+h3{font-size:1.1rem;margin:0 0 10px}
+p{line-height:1.65}
+svg{display:inline-block;vertical-align:middle;flex-shrink:0}
+
+/* ── Header / Nav ── */
+header{
+  position:sticky;top:0;z-index:60;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:0 max(5vw,20px);height:72px;
+  background:#08121de8;border-bottom:1px solid #ffffff14;
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  gap:16px;flex-wrap:wrap;
+}
+.brand{
+  font-family:var(--display);font-size:1.5rem;font-weight:800;
+  letter-spacing:-1.5px;color:#fff;
+}
+.brand span{color:var(--mint)}
+nav{display:flex;gap:20px;font-size:13px;font-weight:600;flex-wrap:wrap}
+nav a{color:#c8dfe9;transition:color .2s}
+nav a:hover{color:#fff}
+nav a.active,#inbox-count{color:var(--mint)!important;font-weight:800}
+
+/* ── Layout ── */
+main{max-width:var(--container);margin:36px auto;padding:0 24px;min-height:72vh}
+
+/* ── Cards / Panels ── */
+.panel{
+  background:#fff;border:1px solid var(--line);
+  padding:26px;border-radius:var(--radius);
+  margin:0 0 18px;box-shadow:var(--shadow);
+  animation:appear .25s ease-out;
+}
+
+/* ── Utility ── */
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.row>.grow{flex:1;min-width:0}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.stack{display:grid;gap:14px}
+.divider{border-top:1px solid var(--line);margin:14px 0}
+.muted,.small{color:var(--slate);font-size:.85rem}
+small{color:var(--slate)}
+pre{white-space:pre-wrap;overflow-wrap:anywhere}
+
+/* ── Eyebrow ── */
+.eyebrow{
+  display:inline-flex;align-items:center;gap:10px;
+  text-transform:uppercase;font-size:.7rem;font-weight:800;
+  letter-spacing:.16em;color:var(--orange);margin-bottom:12px;
+}
+.eyebrow:before{content:"";display:block;width:18px;height:2px;background:currentColor}
+
+/* ── Buttons ── */
+button,.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  min-height:44px;padding:11px 18px;
+  border-radius:12px;font-size:.9rem;font-weight:700;
+  line-height:1.1;transition:transform .2s,box-shadow .2s,background .2s;
+  white-space:nowrap;cursor:pointer;border:0;
+  background:var(--orange);color:#fff;
+  box-shadow:0 8px 20px #fb69482c;
+}
+button:hover:not(:disabled),.btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 28px #fb69484e}
+button.secondary,.btn.secondary{
+  background:#fff;color:var(--ink);
+  border:1px solid var(--line);box-shadow:none;
+}
+button.secondary:hover:not(:disabled),.btn.secondary:hover:not(:disabled){background:#f3f6f9}
+
+/* ── Form fields ── */
+label{display:grid;gap:6px;font-size:.88rem;font-weight:650}
+input,textarea,select{
+  width:100%;padding:11px 14px;
+  border:1.5px solid #cdd8e1;border-radius:10px;
+  background:#fff;color:var(--ink);
+  transition:border-color .2s;
+}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--orange)}
+input[type=checkbox]{width:auto}
+textarea{resize:vertical;min-height:82px}
+
+/* ── Status pills ── */
+.pill{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:5px 12px;border-radius:999px;
+  font-size:.75rem;font-weight:800;
+  background:#fff2ec;color:#b3452e;
+}
+.pill.received,.pill.inspecting{background:#e8f4ff;color:#1a5fa8}
+.pill.quoted,.pill.approved{background:#fff2ec;color:#b3452e}
+.pill.repairing{background:#fff9e6;color:#8a5c00}
+.pill.completed,.pill.delivered{background:#e5f9f0;color:#1a7a4a}
+.pill.cancelled{background:#f5f5f5;color:#666}
+.new-pill{
+  display:inline-block;background:#fff1d2;color:#895100;
+  padding:3px 8px;border-radius:6px;font-size:10px;font-weight:800;
+}
+.warn{background:#fff4dd;padding:12px;border-radius:10px;color:#674700;font-size:.88rem}
+.error{color:#a02736;font-size:.88rem}
+
+/* ── Tables ── */
+.tablewrap{overflow:auto;border-radius:12px;border:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;text-align:left;font-size:.88rem}
+td,th{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--slate);font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;background:#f8fafc}
+tr:last-child td{border-bottom:0}
+td button{white-space:nowrap;min-height:34px;padding:7px 14px;font-size:.82rem}
+.inbox-table{min-width:890px}
+.inbox-table td{max-width:230px;overflow-wrap:anywhere}
+.inbox-table td small{white-space:pre-wrap}
+
+/* ── Inbox ── */
+.inbox-pages{justify-content:space-between;margin-top:14px}
+
+/* ── Intake / detail fields ── */
+.intake-fields{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 0 18px}
+.intake-fields div{border-bottom:1px solid var(--line);padding:0 0 10px;min-width:0}
+.intake-fields dt{font-size:.75rem;color:var(--slate);margin-bottom:5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.intake-fields dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-weight:600;font-size:.93rem}
+.intake-actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+
+/* ── Line items ── */
+.line-item{display:grid;grid-template-columns:minmax(100px,1fr) 80px 125px auto;gap:8px;margin:8px 0;align-items:end}
+
+/* ── Timeline ── */
+.timeline{border-left:3px solid var(--orange);margin-left:8px;padding-left:18px}
+.timeline p{margin:0 0 18px;overflow-wrap:anywhere;font-size:.9rem}
+.timeline p b{color:var(--ink2);font-family:var(--display)}
+
+/* ── Summary numbers ── */
+.sum{font-size:2rem;font-weight:800;letter-spacing:-1px;font-family:var(--display);color:var(--ink)}
+
+/* ── Toast ── */
+#toast{
+  position:fixed;bottom:24px;right:24px;max-width:calc(100% - 48px);
+  background:#0a1826;color:#fff;border-radius:14px;
+  padding:14px 18px;display:none;z-index:999;
+  box-shadow:0 12px 40px rgba(10,24,38,.35);font-size:.9rem;
+}
+
+/* ── Footer ── */
+footer{padding:28px;text-align:center;color:var(--slate);font-size:.82rem}
+
+/* ── Invoice ── */
+.invoice{max-width:850px;margin:auto}
+
+/* ── Check row ── */
+.check{display:flex;gap:8px;align-items:center}
+
+/* ── Access / login ── */
+.access-login{display:grid;place-items:center;padding:32px 16px;min-height:60vh}
+.access-login .login-card{width:min(100%,520px)}
+
+/* ── Animations ── */
+@keyframes appear{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ── Responsive ── */
+@media(max-width:860px){
+  .split{grid-template-columns:1fr}
+  .intake-fields{grid-template-columns:1fr}
+}
+@media(max-width:620px){
+  main{padding:0 16px;margin-top:20px}
+  .panel{padding:18px}
+  h1{font-size:1.6rem}
+  .line-item{grid-template-columns:1fr 60px 100px auto}
+  .line-item button{padding:9px 8px}
+  header{height:60px}
+  .brand{font-size:1.3rem}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media print{
+  header,footer,button,.no-print,#toast{display:none!important}
+  body{background:#fff}
+  main{margin:0;padding:0}
+  .panel{border:0;box-shadow:none;animation:none}
+  .invoice{max-width:none}
+}
