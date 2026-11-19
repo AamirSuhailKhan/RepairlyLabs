@@ -1,5 +1,4 @@
 /* ===== RepairlyLabs — Repair Center (design-synced with main site) ===== */
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&display=swap');
 
 :root{
   --ink:#0a1826;--ink2:#18283a;--dark:#07121d;--dark2:#0d2030;
@@ -15,7 +14,11 @@
 
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{margin:0;color:var(--ink);background:var(--bg);font-family:var(--font);-webkit-font-smoothing:antialiased}
+body{
+  margin:0;padding-top:86px;
+  color:var(--ink);background:var(--bg);
+  font-family:var(--font);-webkit-font-smoothing:antialiased;
+}
 a{color:var(--accent);text-decoration:none;font-weight:600}
 button,input,select,textarea{font:inherit}
 button{cursor:pointer;border:0}
@@ -23,35 +26,87 @@ button:disabled{opacity:.5;cursor:not-allowed}
 input,select,textarea{outline-color:var(--orange)}
 h1,h2,h3,h4,p{margin-top:0}
 h1,h2,h3,h4{font-family:var(--display);letter-spacing:-.045em}
-h1{font-size:clamp(2rem,4vw,3rem);line-height:1.1;margin:8px 0 14px}
-h2{font-size:1.4rem;margin:0 0 16px}
-h3{font-size:1.1rem;margin:0 0 10px}
+h1{font-size:clamp(1.9rem,3.5vw,2.8rem);line-height:1.1;margin:8px 0 14px}
+h2{font-size:1.35rem;margin:0 0 16px}
+h3{font-size:1.05rem;margin:0 0 10px}
 p{line-height:1.65}
 svg{display:inline-block;vertical-align:middle;flex-shrink:0}
 
-/* ── Header / Nav ── */
-header{
-  position:sticky;top:0;z-index:60;
-  display:flex;justify-content:space-between;align-items:center;
-  padding:0 max(5vw,20px);height:72px;
-  background:#08121de8;border-bottom:1px solid #ffffff14;
+/* ══════════════════════════════════
+   NAVBAR — exact match to main site
+   ══════════════════════════════════ */
+.navbar{
+  position:fixed;z-index:60;left:0;right:0;top:0;
+  height:86px;
+  transition:height .25s,background .25s,border-color .25s;
+  background:#08121de8;
+  border-bottom:1px solid #ffffff14;
   backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
-  gap:16px;flex-wrap:wrap;
 }
-.brand{
-  font-family:var(--display);font-size:1.5rem;font-weight:800;
-  letter-spacing:-1.5px;color:#fff;
+.navbar.scrolled{height:72px;background:#0a1724f5;border-bottom-color:#ffffff21}
+
+.nav-shell{
+  height:100%;display:flex;
+  justify-content:space-between;align-items:center;gap:25px;
 }
-.brand span{color:var(--mint)}
-nav{display:flex;gap:20px;font-size:13px;font-weight:600;flex-wrap:wrap}
-nav a{color:#c8dfe9;transition:color .2s}
-nav a:hover{color:#fff}
-nav a.active,#inbox-count{color:var(--mint)!important;font-weight:800}
+.container{max-width:var(--container);padding:0 28px;margin:auto}
 
-/* ── Layout ── */
-main{max-width:var(--container);margin:36px auto;padding:0 24px;min-height:72vh}
+/* ── Logo ── */
+.logo{
+  display:inline-flex;align-items:center;gap:11px;
+  color:white;font-family:var(--display);
+  font-size:1.6rem;letter-spacing:-.07em;font-weight:700;
+  white-space:nowrap;text-decoration:none;
+}
+.logo-mark{
+  height:39px;width:39px;
+  display:inline-grid;place-items:center;
+  border-radius:12px;color:#0b1927;
+  background:var(--orange);font-weight:800;
+  position:relative;flex-shrink:0;
+}
+.logo-mark::after{
+  content:"";position:absolute;
+  width:9px;height:9px;
+  border:2px solid white;border-radius:50%;
+  right:-3px;top:-3px;background:var(--orange);
+}
+.logo em{font-style:normal;color:var(--orange)}
 
-/* ── Cards / Panels ── */
+/* ── Nav links ── */
+.nav-links{display:flex;gap:28px;align-items:center}
+.nav-links a{
+  color:#c7d1d9;font-size:.91rem;font-weight:700;
+  text-decoration:none;transition:color .2s;
+}
+.nav-links a:hover,.nav-links a.active{color:white}
+#inbox-count{color:var(--mint)!important;font-weight:800}
+
+/* ── Mobile nav ── */
+.mobile-trigger{
+  display:none;background:transparent;
+  color:white;padding:8px;border:0;cursor:pointer;
+}
+.mobile-nav{
+  display:none;flex-direction:column;gap:0;
+  position:absolute;top:100%;left:0;right:0;
+  background:#0b1a28;padding:12px 22px 22px;
+  border-bottom:1px solid #ffffff25;
+}
+.mobile-nav.open{display:flex}
+.mobile-nav a{
+  padding:14px 4px;border-bottom:1px solid #ffffff13;
+  color:#e4ebee;font-weight:700;text-decoration:none;
+}
+.mobile-nav a:last-child{border-bottom:0}
+#inbox-count-mob{color:var(--mint)!important;font-weight:800}
+
+/* ══════════════════════════════════
+   LAYOUT
+   ══════════════════════════════════ */
+main{max-width:var(--container);margin:36px auto;padding:0 28px;min-height:72vh}
+
+/* ── Cards ── */
 .panel{
   background:#fff;border:1px solid var(--line);
   padding:26px;border-radius:var(--radius);
@@ -59,15 +114,14 @@ main{max-width:var(--container);margin:36px auto;padding:0 24px;min-height:72vh}
   animation:appear .25s ease-out;
 }
 
-/* ── Utility ── */
+/* ── Grid helpers ── */
 .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .row>.grow{flex:1;min-width:0}
 .split{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 .stack{display:grid;gap:14px}
 .divider{border-top:1px solid var(--line);margin:14px 0}
-.muted,.small{color:var(--slate);font-size:.85rem}
-small{color:var(--slate)}
-pre{white-space:pre-wrap;overflow-wrap:anywhere}
+small,
+.muted{color:var(--slate);font-size:.85rem}
 
 /* ── Eyebrow ── */
 .eyebrow{
@@ -75,26 +129,32 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere}
   text-transform:uppercase;font-size:.7rem;font-weight:800;
   letter-spacing:.16em;color:var(--orange);margin-bottom:12px;
 }
-.eyebrow:before{content:"";display:block;width:18px;height:2px;background:currentColor}
+.eyebrow::before{content:"";display:block;width:18px;height:2px;background:currentColor}
 
-/* ── Buttons ── */
+/* ══════════════════════════════════
+   BUTTONS
+   ══════════════════════════════════ */
 button,.btn{
   display:inline-flex;align-items:center;justify-content:center;gap:8px;
-  min-height:44px;padding:11px 18px;
+  min-height:44px;padding:11px 20px;
   border-radius:12px;font-size:.9rem;font-weight:700;
-  line-height:1.1;transition:transform .2s,box-shadow .2s,background .2s;
-  white-space:nowrap;cursor:pointer;border:0;
+  line-height:1.1;white-space:nowrap;cursor:pointer;border:0;
   background:var(--orange);color:#fff;
   box-shadow:0 8px 20px #fb69482c;
+  transition:transform .2s,box-shadow .2s,background .2s;
 }
-button:hover:not(:disabled),.btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 28px #fb69484e}
+button:hover:not(:disabled),.btn:hover:not(:disabled){
+  transform:translateY(-2px);box-shadow:0 12px 28px #fb69484e;
+}
 button.secondary,.btn.secondary{
   background:#fff;color:var(--ink);
-  border:1px solid var(--line);box-shadow:none;
+  border:1.5px solid var(--line);box-shadow:none;
 }
 button.secondary:hover:not(:disabled),.btn.secondary:hover:not(:disabled){background:#f3f6f9}
 
-/* ── Form fields ── */
+/* ══════════════════════════════════
+   FORM FIELDS
+   ══════════════════════════════════ */
 label{display:grid;gap:6px;font-size:.88rem;font-weight:650}
 input,textarea,select{
   width:100%;padding:11px 14px;
@@ -106,18 +166,15 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--orange)}
 input[type=checkbox]{width:auto}
 textarea{resize:vertical;min-height:82px}
 
-/* ── Status pills ── */
+/* ══════════════════════════════════
+   STATUS PILLS
+   ══════════════════════════════════ */
 .pill{
   display:inline-flex;align-items:center;gap:5px;
-  padding:5px 12px;border-radius:999px;
-  font-size:.75rem;font-weight:800;
+  padding:5px 13px;border-radius:999px;
+  font-size:.74rem;font-weight:800;
   background:#fff2ec;color:#b3452e;
 }
-.pill.received,.pill.inspecting{background:#e8f4ff;color:#1a5fa8}
-.pill.quoted,.pill.approved{background:#fff2ec;color:#b3452e}
-.pill.repairing{background:#fff9e6;color:#8a5c00}
-.pill.completed,.pill.delivered{background:#e5f9f0;color:#1a7a4a}
-.pill.cancelled{background:#f5f5f5;color:#666}
 .new-pill{
   display:inline-block;background:#fff1d2;color:#895100;
   padding:3px 8px;border-radius:6px;font-size:10px;font-weight:800;
@@ -125,36 +182,46 @@ textarea{resize:vertical;min-height:82px}
 .warn{background:#fff4dd;padding:12px;border-radius:10px;color:#674700;font-size:.88rem}
 .error{color:#a02736;font-size:.88rem}
 
-/* ── Tables ── */
+/* ══════════════════════════════════
+   TABLES
+   ══════════════════════════════════ */
 .tablewrap{overflow:auto;border-radius:12px;border:1px solid var(--line)}
 table{width:100%;border-collapse:collapse;text-align:left;font-size:.88rem}
 td,th{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}
-th{color:var(--slate);font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;background:#f8fafc}
+th{
+  color:var(--slate);font-size:.74rem;font-weight:700;
+  text-transform:uppercase;letter-spacing:.05em;background:#f8fafc;
+}
 tr:last-child td{border-bottom:0}
 td button{white-space:nowrap;min-height:34px;padding:7px 14px;font-size:.82rem}
 .inbox-table{min-width:890px}
 .inbox-table td{max-width:230px;overflow-wrap:anywhere}
 .inbox-table td small{white-space:pre-wrap}
-
-/* ── Inbox ── */
 .inbox-pages{justify-content:space-between;margin-top:14px}
 
-/* ── Intake / detail fields ── */
+/* ══════════════════════════════════
+   INTAKE / DETAIL FIELDS
+   ══════════════════════════════════ */
 .intake-fields{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 0 18px}
 .intake-fields div{border-bottom:1px solid var(--line);padding:0 0 10px;min-width:0}
-.intake-fields dt{font-size:.75rem;color:var(--slate);margin-bottom:5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.intake-fields dt{
+  font-size:.74rem;color:var(--slate);margin-bottom:5px;
+  font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+}
 .intake-fields dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-weight:600;font-size:.93rem}
 .intake-actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
 
 /* ── Line items ── */
 .line-item{display:grid;grid-template-columns:minmax(100px,1fr) 80px 125px auto;gap:8px;margin:8px 0;align-items:end}
 
-/* ── Timeline ── */
+/* ══════════════════════════════════
+   TIMELINE
+   ══════════════════════════════════ */
 .timeline{border-left:3px solid var(--orange);margin-left:8px;padding-left:18px}
 .timeline p{margin:0 0 18px;overflow-wrap:anywhere;font-size:.9rem}
 .timeline p b{color:var(--ink2);font-family:var(--display)}
 
-/* ── Summary numbers ── */
+/* ── Totals ── */
 .sum{font-size:2rem;font-weight:800;letter-spacing:-1px;font-family:var(--display);color:var(--ink)}
 
 /* ── Toast ── */
@@ -174,17 +241,22 @@ footer{padding:28px;text-align:center;color:var(--slate);font-size:.82rem}
 /* ── Check row ── */
 .check{display:flex;gap:8px;align-items:center}
 
-/* ── Access / login ── */
-.access-login{display:grid;place-items:center;padding:32px 16px;min-height:60vh}
-.access-login .login-card{width:min(100%,520px)}
-
-/* ── Animations ── */
+/* ══════════════════════════════════
+   ANIMATIONS
+   ══════════════════════════════════ */
 @keyframes appear{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
-/* ── Responsive ── */
+/* ══════════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════════ */
 @media(max-width:860px){
   .split{grid-template-columns:1fr}
   .intake-fields{grid-template-columns:1fr}
+  .nav-links{display:none}
+  .mobile-trigger{display:grid;place-items:center}
+  body{padding-top:74px}
+  .navbar{height:74px}
+  .navbar.scrolled{height:68px}
 }
 @media(max-width:620px){
   main{padding:0 16px;margin-top:20px}
@@ -192,13 +264,14 @@ footer{padding:28px;text-align:center;color:var(--slate);font-size:.82rem}
   h1{font-size:1.6rem}
   .line-item{grid-template-columns:1fr 60px 100px auto}
   .line-item button{padding:9px 8px}
-  header{height:60px}
-  .brand{font-size:1.3rem}
+  .logo{font-size:1.35rem}
+  .logo-mark{height:34px;width:34px}
+  .container{padding:0 18px}
 }
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media print{
-  header,footer,button,.no-print,#toast{display:none!important}
-  body{background:#fff}
+  .navbar,footer,button,.no-print,#toast{display:none!important}
+  body{background:#fff;padding-top:0}
   main{margin:0;padding:0}
   .panel{border:0;box-shadow:none;animation:none}
   .invoice{max-width:none}
