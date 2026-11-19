@@ -4,6 +4,7 @@ import { resolve, extname, join, dirname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDatabase, getSettings, verifyPassword, hashToken, randomToken, publicRef, CATEGORIES } from './data.mjs';
 import { createRepairCenter } from './repair-center.mjs';
+import { createReferenceAllocator } from './repair-reference.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const WEBROOT = join(ROOT, 'public');
@@ -51,6 +52,8 @@ function track(ref, phone) { const p = phoneNorm(phone), r = str(ref, 50).toUppe
 const states = ['pending', 'confirmed', 'in_progress', 'ready', 'completed', 'cancelled'];
 const orderTransitions = { pending: ['confirmed', 'cancelled'], confirmed: ['in_progress', 'ready', 'cancelled'], in_progress: ['ready', 'cancelled'], ready: ['completed', 'cancelled'], completed: [], cancelled: [] };
 // REPAIRLY_CENTER_INSTALLED
+// REPAIRLY_INTAKE_V2
+export const allocateRepairlyRef = createReferenceAllocator(db);
 export const repairCenter = createRepairCenter({
     db,
     auth,
@@ -79,7 +82,9 @@ async function api(req, res, url) {
         if (!['Visit workshop', 'Request pickup', 'Discuss options'].includes(method)) err(400, 'Invalid appointment method.');
         if (method === 'Request pickup' && getSettings(db).pickup_enabled !== '1') err(400, 'Pickup requests are not available right now.');
         const date = str(b.date, 20); if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) err(400, 'Invalid date.');
-        const consentAt = consent(b); const locality = required(b.locality, 'Area/locality', 100); const address = str(b.address, 260); const notes = str(b.notes, 800); const ref = publicRef('RLM');
+        const consentAt = consent(b); const locality = required(b.locality, 'Area/locality', 100); const address = str(b.address, 260);
+        if (method === 'Request pickup' && !address) err(400, 'Full address is required for pickup.');
+        const notes = str(b.notes, 800); const ref = allocateRepairlyRef('RLM');
         db.prepare('INSERT INTO bookings(ref,name,phone,brand,model,issue,method,date,locality,address,notes,consent_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').run(ref, name, phone, brand, model, issue, method, date, locality, address, notes, consentAt);
         void sendWebhook('repair.requested', { ref, name, phone, brand, model, issue, method, date, locality });
         return ok(res, { ref, repair_access: repairCenter.issueToken(ref), status: 'pending', message: 'Repair request saved. Keep your reference ID to check status.' }, 201);
@@ -92,7 +97,7 @@ async function api(req, res, url) {
         if (mode === 'Request delivery' && !address) err(400, 'Address is needed for delivery requests.');
         const verified = [], seen = new Set(); let total = 0;
         for (const item of b.items) { const id = integer(item.id, 1, 100000000, 'product'), qty = integer(item.quantity, 1, 20, 'quantity'); if (seen.has(id)) err(400, 'Duplicate product entry.'); seen.add(id); const p = db.prepare('SELECT * FROM products WHERE id=? AND active=1').get(id); if (!p) err(400, 'Some parts are no longer listed.'); if (qty > p.stock) err(400, `Insufficient listed stock for ${p.name}.`); total += p.price * qty; verified.push({ p, qty }); }
-        const ref = publicRef('RLP'); db.exec('BEGIN IMMEDIATE'); try {
+        const ref = allocateRepairlyRef('RLP'); db.exec('BEGIN IMMEDIATE'); try {
             const order = db.prepare('INSERT INTO orders(ref,name,phone,locality,address,mode,notes,subtotal,consent_at) VALUES(?,?,?,?,?,?,?,?,?)').run(ref, name, phone, locality, address, mode, notes, total, consentAt);
             const add = db.prepare('INSERT INTO order_items(order_id,product_id,sku,name,unit_price,quantity,sample) VALUES(?,?,?,?,?,?,?)'); for (const { p, qty } of verified) add.run(order.lastInsertRowid, p.id, p.sku, p.name, p.price, qty, p.sample);
             db.exec('COMMIT');
