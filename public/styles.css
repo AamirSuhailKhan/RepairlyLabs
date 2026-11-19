@@ -35,3 +35,6 @@
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}.reveal{opacity:1!important;transform:none!important}}
 
 [id="booking"]{scroll-margin-top:86px}
+
+/* Owner and team access */
+.access-login{display:grid;place-items:center;padding:32px 16px;min-height:100vh}.access-login .login-card{width:min(100%,540px);margin:auto}.access-login .pill{display:inline-flex;margin-top:12px}.access-password{position:relative}.access-password input{width:100%;padding-right:80px!important}.access-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:#344d5d;font-weight:700;cursor:pointer}.access-help{display:block;margin:18px auto 0;color:#b94431;border:0;background:transparent;text-align:center;cursor:pointer;font-weight:600;font-size:.9rem}.access-error{padding:12px;margin:10px 0;border-radius:10px;background:#fff1ef;color:#a52b25}.access-login [hidden]{display:none!important}.access-login .status-note{display:block;margin-top:12px;font-size:.83rem}.access-login .field small{display:block;color:#526b79;margin-top:5px;font-size:.8rem}

@@ -1,3 +1,5 @@
+> **Windows browser login update:** See [ACCESS-README.md](ACCESS-README.md) for double-click startup and secure owner recovery, email/username sign-in, and browser-based team management. No daily terminal setup required.
+
 # RepairlyLabs — Mobile Repair & Spare Parts Website
 
 An animated, responsive **full-stack repair and spare-parts storefront**. The working website includes a public customer experience, persistent SQLite database and protected operations dashboard.

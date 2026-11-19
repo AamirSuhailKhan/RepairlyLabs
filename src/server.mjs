@@ -4,6 +4,7 @@ import { resolve, extname, join, dirname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDatabase, getSettings, verifyPassword, hashToken, randomToken, publicRef, CATEGORIES } from './data.mjs';
 import { createRepairCenter } from './repair-center.mjs';
+import { initAccess, profile, findAccount, recoverOwner, manageTeam, updateEmail, owner } from './admin-access.mjs';
 import { createReferenceAllocator } from './repair-reference.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -13,6 +14,7 @@ if (existsSync(join(ROOT, '.env'))) for (const line of readFileSync(join(ROOT, '
     if (match && !Object.hasOwn(process.env, match[1])) process.env[match[1]] = match[2].replace(/^(['"])(.*)\1$/, '$2');
 }
 export const db = openDatabase();
+initAccess(db);
 const PORT = Number(process.env.PORT || 3001);
 const IS_PROD = process.env.NODE_ENV === 'production';
 const cookieName = 'repairlylabs_session';
@@ -40,7 +42,7 @@ const requests = new Map();
 function limit(req, group, max, windowMs) { const key = group + ':' + clientIp(req); const now = Date.now(); let item = requests.get(key); if (!item || now > item.reset) { item = { count: 0, reset: now + windowMs }; requests.set(key, item); } item.count++; if (item.count > max) err(429, 'Too many requests. Please try again later.'); if (requests.size > 6000) { for (const [k, v] of requests) if (v.reset < now) requests.delete(k); } }
 function checkOrigin(req) { if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return; const origin = req.headers.origin; if (origin) { let domain; try { domain = new URL(origin).host; } catch { err(403, 'Invalid origin.'); } if (domain !== req.headers.host) err(403, 'Cross-site requests are blocked.'); } }
 function cookie(req) { const s = (req.headers.cookie || '').split(';').map(x => x.trim()).find(x => x.startsWith(cookieName + '=')); return s?.slice(cookieName.length + 1) || ''; }
-function session(req) { const token = cookie(req); if (!/^[\w-]{40,120}$/.test(token)) return null; const row = db.prepare('SELECT username,csrf,expires_at FROM sessions WHERE token_hash=?').get(hashToken(token)); if (!row || row.expires_at < Date.now()) return null; return row; }
+function session(req) { const token = cookie(req); if (!/^[\w-]{40,120}$/.test(token)) return null; const row = db.prepare('SELECT username,csrf,expires_at FROM sessions WHERE token_hash=?').get(hashToken(token)); if (!row || row.expires_at < Date.now() || profile(db,row.username).disabled) return null; return row; }
 function auth(req) { const s = session(req); if (!s) err(401, 'Please sign in.'); if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && req.headers['x-csrf-token'] !== s.csrf) err(403, 'Session verification failed. Refresh the page.'); return s; }
 function audit(username, action, details = '') { db.prepare('INSERT INTO audit(username,action,details) VALUES(?,?,?)').run(username, action, String(details).slice(0, 400)); }
 function consent(b) { if (![true, 'on', '1'].includes(b.consent)) err(400, 'Please agree to the privacy notice before submitting.'); return new Date().toISOString(); }
@@ -114,21 +116,27 @@ async function api(req, res, url) {
     if (pathname === '/api/track' && method === 'GET') {
         limit(req, 'track', 30, 3600000); const result = track(url.searchParams.get('ref'), url.searchParams.get('phone')); if (!result) err(404, 'No request found with that reference and phone number.'); return ok(res, result);
     }
+    if (pathname === '/api/admin/access-info' && method === 'GET') return ok(res,{version:2});
+    if (pathname === '/api/admin/recover' && method === 'POST') { limit(req,'recover',8,900000); const b=await bodyJson(req); return ok(res,recoverOwner(db,b)); }
     if (pathname === '/api/admin/login' && method === 'POST') {
-        limit(req, 'login', 8, 900000); const b = await bodyJson(req), username = str(b.username, 80).toLowerCase(), pass = String(b.password || '');
-        const account = db.prepare('SELECT * FROM admins WHERE username=?').get(username);
-        if (!account || !verifyPassword(pass, account.password_hash)) err(401, 'Incorrect username or password.');
+        limit(req, 'login', 8, 900000); const b = await bodyJson(req), login = str(b.username, 120).toLowerCase(), pass = String(b.password || '');
+        const account = findAccount(db,login);
+        if (!account || account.disabled || pass.length>150 || !verifyPassword(pass, account.password_hash)) err(401, 'Incorrect username or password.');
+        const username=account.username;
         const token = randomToken(), csrf = randomToken(24), expiration = Date.now() + 7 * 24 * 60 * 60 * 1000;
         db.prepare('DELETE FROM sessions WHERE expires_at<?').run(Date.now());
         db.prepare('INSERT INTO sessions(token_hash,username,csrf,expires_at) VALUES(?,?,?,?)').run(hashToken(token), username, csrf, expiration);
         const c = `${cookieName}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800${IS_PROD ? '; Secure' : ''}`;
-        audit(username, 'sign_in'); return respond(res, 200, { username, csrf }, { 'Set-Cookie': c });
+        audit(username, 'sign_in'); return respond(res, 200, { ...profile(db,username), csrf }, { 'Set-Cookie': c });
     }
     if (pathname === '/api/admin/me' && method === 'GET') {
-        const s = auth(req); return ok(res, { username: s.username, csrf: s.csrf });
+        const s = auth(req); return ok(res, { ...profile(db,s.username), csrf: s.csrf });
     }
     if (pathname.startsWith('/api/admin/')) {
         const s = auth(req);
+        if (pathname === '/api/admin/team' && method === 'GET') { if(owner(db)!==s.username)err(403,'Only the owner can manage team accounts.');return ok(res,db.prepare('SELECT username,created_at FROM admins ORDER BY username').all().map(a=>({...a,...profile(db,a.username)}))); }
+        if (pathname === '/api/admin/team' && method === 'POST') { limit(req,'team',20,900000); return ok(res,manageTeam(db,s.username,await bodyJson(req))); }
+        if (pathname === '/api/admin/email' && method === 'PATCH') { limit(req,'email',10,900000);return ok(res,updateEmail(db,s.username,await bodyJson(req))); }
         if (pathname === '/api/admin/logout' && method === 'POST') {
             db.prepare('DELETE FROM sessions WHERE token_hash=?').run(hashToken(cookie(req))); return respond(res, 200, { ok: true }, { 'Set-Cookie': `${cookieName}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${IS_PROD ? '; Secure' : ''}` });
         }
