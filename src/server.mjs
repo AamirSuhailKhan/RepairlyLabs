@@ -3,6 +3,7 @@ import { readFileSync, existsSync, statSync } from 'node:fs';
 import { resolve, extname, join, dirname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDatabase, getSettings, verifyPassword, hashToken, randomToken, publicRef, CATEGORIES } from './data.mjs';
+import { createRepairCenter } from './repair-center.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const WEBROOT = join(ROOT, 'public');
@@ -49,7 +50,18 @@ function getProducts(url, admin = false) { const q = str(url.searchParams.get('q
 function track(ref, phone) { const p = phoneNorm(phone), r = str(ref, 50).toUpperCase(); if (!/^(RLM|RLP|KM|KP)-\d{6}-[0-9A-F]{8}$/.test(r)) err(400, 'Please enter a valid reference ID.'); if (r.startsWith('RLM-') || r.startsWith('KM-')) { const b = db.prepare('SELECT ref,name,brand,model,issue,method,date,locality,status,quote,created_at,updated_at FROM bookings WHERE ref=? AND phone=?').get(r, p); return b ? { type: 'repair', record: b } : null; } const o = db.prepare('SELECT ref,name,mode,locality,status,subtotal,created_at,updated_at FROM orders WHERE ref=? AND phone=?').get(r, p); if (!o) return null; return { type: 'order', record: o, items: db.prepare('SELECT name,quantity,unit_price FROM order_items WHERE order_id=(SELECT id FROM orders WHERE ref=?)').all(r) }; }
 const states = ['pending', 'confirmed', 'in_progress', 'ready', 'completed', 'cancelled'];
 const orderTransitions = { pending: ['confirmed', 'cancelled'], confirmed: ['in_progress', 'ready', 'cancelled'], in_progress: ['ready', 'cancelled'], ready: ['completed', 'cancelled'], completed: [], cancelled: [] };
+// REPAIRLY_CENTER_INSTALLED
+export const repairCenter = createRepairCenter({
+    db,
+    auth,
+    ok,
+    bodyJson,
+    limit,
+    respond,
+    worker: process.env.REPAIRLYLABS_TEST !== '1' && process.env.KASHIFIX_TEST !== '1'
+});
 async function api(req, res, url) {
+    if (url.pathname.startsWith('/api/repair-center/')) return repairCenter.handle(req, res, url);
     const { pathname } = url; const method = req.method;
     if (pathname === '/api/health' && method === 'GET') return ok(res, { ok: true, app: 'RepairlyLabs', time: new Date().toISOString() });
     if (pathname === '/api/config' && method === 'GET') return ok(res, siteConfig());
@@ -70,7 +82,7 @@ async function api(req, res, url) {
         const consentAt = consent(b); const locality = required(b.locality, 'Area/locality', 100); const address = str(b.address, 260); const notes = str(b.notes, 800); const ref = publicRef('RLM');
         db.prepare('INSERT INTO bookings(ref,name,phone,brand,model,issue,method,date,locality,address,notes,consent_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').run(ref, name, phone, brand, model, issue, method, date, locality, address, notes, consentAt);
         void sendWebhook('repair.requested', { ref, name, phone, brand, model, issue, method, date, locality });
-        return ok(res, { ref, status: 'pending', message: 'Repair request saved. Keep your reference ID to check status.' }, 201);
+        return ok(res, { ref, repair_access: repairCenter.issueToken(ref), status: 'pending', message: 'Repair request saved. Keep your reference ID to check status.' }, 201);
     }
     if (pathname === '/api/orders' && method === 'POST') {
         limit(req, 'orders', 12, 3600000); const b = await bodyJson(req); if (!Array.isArray(b.items) || b.items.length === 0 || b.items.length > 30) err(400, 'Cart must have 1–30 items.');
@@ -126,9 +138,10 @@ async function api(req, res, url) {
         if (pathname === '/api/admin/models' && method === 'GET') return ok(res, db.prepare('SELECT * FROM devices ORDER BY brand,model').all());
         if (pathname === '/api/admin/settings' && method === 'GET') return ok(res, getSettings(db));
         if (/^\/api\/admin\/bookings\/\d+$/.test(pathname) && method === 'PATCH') {
+            repairCenter.guardLegacy(Number(pathname.split('/').at(-1)));
             const id = Number(pathname.split('/').at(-1)), b = await bodyJson(req), prev = db.prepare('SELECT status FROM bookings WHERE id=?').get(id); if (!prev) err(404, 'Booking not found.');
             const status = str(b.status, 30); if (!states.includes(status)) err(400, 'Invalid status.'); const quote = b.quote === '' || b.quote === null || b.quote === undefined ? null : integer(b.quote, 0, 100000000, 'quote');
-            db.prepare("UPDATE bookings SET status=?,quote=?,admin_note=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(status, quote, str(b.admin_note, 800), id); audit(s.username, 'booking_update', String(id) + ' -> ' + status); void sendWebhook('repair.status_changed', db.prepare('SELECT ref,name,phone,status,quote FROM bookings WHERE id=?').get(id)); return ok(res, { ok: true });
+            db.prepare("UPDATE bookings SET status=?,quote=?,admin_note=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(status, quote, str(b.admin_note, 800), id); repairCenter.syncLegacy(id); audit(s.username, 'booking_update', String(id) + ' -> ' + status); void sendWebhook('repair.status_changed', db.prepare('SELECT ref,name,phone,status,quote FROM bookings WHERE id=?').get(id)); return ok(res, { ok: true });
         }
         if (/^\/api\/admin\/orders\/\d+$/.test(pathname) && method === 'PATCH') {
             const id = Number(pathname.split('/').at(-1)), b = await bodyJson(req), next = str(b.status, 30); db.exec('BEGIN IMMEDIATE');
@@ -207,12 +220,19 @@ function staticFile(req, res, url) {
     if (!target.startsWith(WEBROOT + sep) && target !== WEBROOT) err(403, 'Forbidden.');
     let file = target;
     if (!existsSync(file) || !statSync(file).isFile()) { if (extname(p)) err(404, 'Not found.'); file = join(WEBROOT, 'index.html'); }
-    const ext = extname(file); const data = readFileSync(file); res.writeHead(200, { ...headers, 'Content-Type': mime[ext] || 'application/octet-stream', 'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=3600' }); if (req.method === 'HEAD') res.end(); else res.end(data);
+    const ext = extname(file); const data = readFileSync(file);
+    const pageHeaders = p === '/repair-center/index.html' ? {
+        ...headers,
+        'Content-Security-Policy': "default-src 'self'; script-src 'self' https://checkout.razorpay.com https://*.razorpay.com; style-src 'self' 'unsafe-inline' https://*.razorpay.com; img-src 'self' data: https://*.razorpay.com; connect-src 'self' https://*.razorpay.com; frame-src https://*.razorpay.com https://*.razorpay.co.in; font-src 'self' data: https://*.razorpay.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self' https://*.razorpay.com;",
+        'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+        'Referrer-Policy': 'no-referrer'
+    } : headers;
+    res.writeHead(200, { ...pageHeaders, 'Content-Type': mime[ext] || 'application/octet-stream', 'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=3600' }); if (req.method === 'HEAD') res.end(); else res.end(data);
 }
 export const server = createServer(async (req, res) => {
     try {
         checkOrigin(req); const url = new URL(req.url, 'http://localhost'); if (url.pathname.startsWith('/api/')) await api(req, res, url); else staticFile(req, res, url);
     } catch (e) { if (!e.status) console.error('[request]', e); respond(res, e.status || 500, { error: e.status ? e.message : 'An unexpected server error occurred.' }); }
 });
-server.on('close', () => { try { db.close(); } catch { } });
+server.on('close', () => { try { repairCenter.close(); } catch { } try { db.close(); } catch { } });
 if (process.env.REPAIRLYLABS_TEST !== '1') server.listen(PORT, '0.0.0.0', () => console.log(`RepairlyLabs ready at http://localhost:${PORT}`));
