@@ -8,7 +8,7 @@ const DEFAULT_SETTINGS = {
   phone: '', whatsapp: '', email: '', address: '', hours: '',
   instagram: '', map_url: '', pickup_enabled: '1', delivery_enabled: '0',
   announcement: 'Repair appointments and spare-part requests are open.',
-  terms: 'Parts are confirmed for compatibility, stock, and final pricing before fulfillment. Repair quotations follow inspection. No payment is collected online.',
+  terms: 'Parts are confirmed for compatibility, stock, and final pricing before fulfillment. Repair quotations follow inspection. Repair payments are requested only after quotation approval; QR transfers require independent verification.',
   warranty: 'Warranty coverage, if any, depends on the specific repair or component and is confirmed in writing before service.',
   privacy_contact: 'Use the contact form to ask about personal information, correction, or deletion of your request records.'
 };
@@ -89,7 +89,9 @@ export function openDatabase(dir = process.env.DATA_DIR || join(process.cwd(),'d
  for(const table of ['bookings','orders','contacts']){
   if(!db.prepare(`PRAGMA table_info(${table})`).all().some(c=>c.name==='consent_at')) db.exec(`ALTER TABLE ${table} ADD COLUMN consent_at TEXT NOT NULL DEFAULT ''`);
  }
- seed(db); return db;
+ const bookingColumns=new Set(db.prepare('PRAGMA table_info(bookings)').all().map(c=>c.name));
+ for(const [key,definition] of Object.entries({email:"TEXT NOT NULL DEFAULT ''",pin:"TEXT NOT NULL DEFAULT ''",slot:"TEXT NOT NULL DEFAULT ''",whatsapp:'INTEGER NOT NULL DEFAULT 0'}))if(!bookingColumns.has(key))db.exec(`ALTER TABLE bookings ADD COLUMN ${key} ${definition}`);
+ seed(db); db.prepare("UPDATE settings SET value=? WHERE key='terms' AND value=?").run(DEFAULT_SETTINGS.terms,'Parts are confirmed for compatibility, stock, and final pricing before fulfillment. Repair quotations follow inspection. No payment is collected online.');return db;
 }
 function seed(db) {
  const putSetting=db.prepare('INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)');

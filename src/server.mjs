@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { isIP } from 'node:net';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -5,17 +6,16 @@ import { resolve, extname, join, dirname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDatabase, getSettings, verifyPassword, hashToken, randomToken, publicRef, CATEGORIES } from './data.mjs';
 import { createRepairCenter } from './repair-center.mjs';
-import { initAccess, profile, findAccount, recoverOwner, manageTeam, updateEmail, owner } from './admin-access.mjs';
+import { initAccess, profile, findAccount, recoverOwner, manageTeam, updateEmail, owner, recoveryValid, generateOfflineCodes } from './admin-access.mjs';
 import { createReferenceAllocator } from './repair-reference.mjs';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+import { ROOT, DATA_DIR } from './config.mjs';
 const WEBROOT = join(ROOT, 'public');
-if (existsSync(join(ROOT, '.env'))) for (const line of readFileSync(join(ROOT, '.env'), 'utf8').split(/\r?\n/)) {
-    const match = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*)\s*$/);
-    if (match && !Object.hasOwn(process.env, match[1])) process.env[match[1]] = match[2].replace(/^(['"])(.*)\1$/, '$2');
-}
-export const db = openDatabase(resolve(ROOT, process.env.DATA_DIR || 'data'));
+export const db = openDatabase(DATA_DIR);
 initAccess(db);
+db.exec(`CREATE TABLE IF NOT EXISTS booking_submissions (fingerprint TEXT PRIMARY KEY, ref TEXT NOT NULL, created_at INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS booking_submission_time ON booking_submissions(created_at);
+CREATE TABLE IF NOT EXISTS request_keys (key_hash TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, ref TEXT NOT NULL, created_at INTEGER NOT NULL);`);
 const PORT = Number(process.env.PORT || 3001);
 const IS_PROD = process.env.NODE_ENV === 'production';
 const cookieName = 'repairlylabs_session';
@@ -35,9 +35,14 @@ const ok = (res, body, status = 200) => respond(res, status, body);
 function err(status, message) { const e = new Error(message); e.status = status; throw e; }
 const str = (x, max = 200) => String(x ?? '').trim().slice(0, max);
 function required(x, name, max = 200) { const v = str(x, max); if (!v) err(400, `${name} is required.`); return v; }
+const digest=value=>createHash('sha256').update(value).digest('hex');
+function requestKey(b){if(b.request_key===undefined)return null;if(typeof b.request_key!=='string'||! /^[a-f0-9]{64}$/.test(b.request_key))err(400,'Invalid request identifier.');return digest(b.request_key);}
+function checkKey(key,fingerprint){if(!key)return null;const row=db.prepare('SELECT * FROM request_keys WHERE key_hash=?').get(key);if(row&&row.fingerprint!==fingerprint)err(409,'This submission identifier was already used for different details. Start a new request.');return row;}
+function rememberKey(key,fingerprint,ref){if(key)db.prepare('INSERT INTO request_keys(key_hash,fingerprint,ref,created_at) VALUES(?,?,?,?)').run(key,fingerprint,ref,Date.now());}
+function bookingReplay(b,old){const token=createHash('sha256').update('repairly-booking:'+b.request_key+':'+old.ref).digest('base64url');const j=db.prepare('SELECT token_hash FROM rl_jobs WHERE ref=?').get(old.ref);if(!j)err(409,'The earlier request is unavailable. Contact staff.');return {ref:old.ref,status:'pending',...(j.token_hash===digest(token)?{repair_access:token}:{}),message:'Your earlier request was already saved.'};}
 function phoneNorm(v) { const n = String(v ?? '').replace(/[\s()+-]/g, '').replace(/^91(?=\d{10}$)/, ''); if (!/^[6-9]\d{9}$/.test(n)) err(400, 'Enter a valid 10-digit Indian mobile number.'); return n; }
 function integer(v, min, max, name) { const n = Number(v); if (!Number.isSafeInteger(n) || n < min || n > max) err(400, `Invalid ${name}.`); return n; }
-async function bodyJson(req) { const chunks = []; let size = 0; for await (const chunk of req) { size += chunk.length; if (size > 90000) err(413, 'Request too large.'); chunks.push(chunk); } const all = Buffer.concat(chunks).toString('utf8'); try { const data = JSON.parse(all || '{}'); if (!data || typeof data !== 'object' || Array.isArray(data)) throw 0; return data; } catch { err(400, 'Invalid JSON.'); } }
+async function bodyJson(req) { const chunks = []; let size = 0; for await (const chunk of req) { size += chunk.length; if (size > (req.url?.split('?')[0]==='/api/repair-center/admin/qr-settings'?750000:/\/api\/repair-center\/job\/[A-Z0-9-]+\/qr-claim$/.test(req.url?.split('?')[0]||'')?750000:90000)) err(413, 'Request too large.'); chunks.push(chunk); } const all = Buffer.concat(chunks).toString('utf8'); try { const data = JSON.parse(all || '{}'); if (!data || typeof data !== 'object' || Array.isArray(data)) throw 0; return data; } catch { err(400, 'Invalid JSON.'); } }
 function trustedProxy(req) { return process.env.TRUST_PROXY === '1' && ['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress); }
 function clientIp(req) { const ip=req.socket.remoteAddress || 'unknown'; const candidate=String(req.headers['x-forwarded-for'] || '').split(',').at(-1).trim(); return trustedProxy(req) && isIP(candidate) ? candidate : ip; }
 const requests = new Map();
@@ -45,7 +50,7 @@ function limit(req, group, max, windowMs) { const key=group+':'+clientIp(req), n
 function checkOrigin(req) { if (!['POST','PUT','PATCH','DELETE'].includes(req.method)) return; const origin=req.headers.origin; if(!origin) return; const proto=(trustedProxy(req) && req.headers['x-forwarded-proto']==='https') || req.socket.encrypted ? 'https':'http'; let expected; try { expected=new URL(process.env.PUBLIC_ORIGIN || `${proto}://${req.headers.host}`).origin; } catch { err(403,'Invalid origin.'); } if(origin!==expected) err(403,'Cross-site requests are blocked.'); }
 function cookie(req) { const s = (req.headers.cookie || '').split(';').map(x => x.trim()).find(x => x.startsWith(cookieName + '=')); return s?.slice(cookieName.length + 1) || ''; }
 function session(req) { const token = cookie(req); if (!/^[\w-]{40,120}$/.test(token)) return null; const row = db.prepare('SELECT username,csrf,expires_at FROM sessions WHERE token_hash=?').get(hashToken(token)); if (!row || row.expires_at < Date.now() || profile(db,row.username).disabled) return null; return row; }
-function auth(req) { const s = session(req); if (!s) err(401, 'Please sign in.'); if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && req.headers['x-csrf-token'] !== s.csrf) err(403, 'Session verification failed. Refresh the page.'); return s; }
+function auth(req) { const s = session(req); if (!s) err(401, 'Please sign in.'); if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && req.headers['x-csrf-token'] !== s.csrf) err(403, 'Session verification failed. Refresh the page.'); return {...s, ...profile(db,s.username)}; }
 function audit(username, action, details = '') { db.prepare('INSERT INTO audit(username,action,details) VALUES(?,?,?)').run(username, action, String(details).slice(0, 400)); }
 function consent(b) { if (![true, 'on', '1'].includes(b.consent)) err(400, 'Please agree to the privacy notice before submitting.'); return new Date().toISOString(); }
 async function sendWebhook(kind, record) { const dest = process.env.NOTIFY_WEBHOOK_URL; if (!dest) return; try { const target = new URL(dest); if (target.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(target.hostname)) throw Error('Webhook must use HTTPS'); const body = JSON.stringify({ event: kind, record, timestamp: new Date().toISOString() }); const { createHmac } = await import('node:crypto'); const signature = createHmac('sha256', process.env.NOTIFY_WEBHOOK_SECRET || '').update(body).digest('hex'); const response = await fetch(dest, { method: 'POST', headers: { 'content-type': 'application/json', 'x-repairlylabs-signature': 'sha256=' + signature }, body, signal: AbortSignal.timeout(5000) }); if (!response.ok) throw Error('HTTP ' + response.status); } catch (e) { console.error('[notification] Optional webhook failed:', e.message); } }
@@ -65,6 +70,7 @@ export const repairCenter = createRepairCenter({
     bodyJson,
     limit,
     respond,
+    verifyOwner: (actor,password)=>owner(db)===actor && typeof password==='string' && password.length<=150 && verifyPassword(password,findAccount(db,actor).password_hash),
     worker: process.env.REPAIRLYLABS_TEST !== '1' && process.env.KASHIFIX_TEST !== '1'
 });
 async function api(req, res, url) {
@@ -85,13 +91,21 @@ async function api(req, res, url) {
         const name = required(b.name, 'Name', 100), phone = phoneNorm(b.phone), brand = required(b.brand, 'Brand', 80), model = required(b.model, 'Model', 120), issue = required(b.issue, 'Repair issue', 120), method = required(b.method, 'Service method', 40);
         if (!['Visit workshop', 'Request pickup', 'Discuss options'].includes(method)) err(400, 'Invalid appointment method.');
         if (method === 'Request pickup' && getSettings(db).pickup_enabled !== '1') err(400, 'Pickup requests are not available right now.');
-        const date = str(b.date, 20); if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) err(400, 'Invalid date.');
+        const date = str(b.date, 20); if (date && (!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date+'T00:00:00Z'))||new Date(date+'T00:00:00Z').toISOString().slice(0,10)!==date)) err(400, 'Invalid date.');
         const consentAt = consent(b); const locality = required(b.locality, 'Area/locality', 100); const address = str(b.address, 260);
         if (method === 'Request pickup' && !address) err(400, 'Full address is required for pickup.');
-        const notes = str(b.notes, 800); const ref = allocateRepairlyRef('RLM');
-        db.prepare('INSERT INTO bookings(ref,name,phone,brand,model,issue,method,date,locality,address,notes,consent_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').run(ref, name, phone, brand, model, issue, method, date, locality, address, notes, consentAt);
+        const notes = str(b.notes, 800); const email=str(b.email,180), pin=str(b.pin,6), slot=str(b.slot,30), whatsapp=b.whatsapp===true||b.whatsapp==='on'?1:0; if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))err(400,'Invalid email.'); if(pin&&!/^[1-9]\d{5}$/.test(pin))err(400,'Enter a valid 6-digit PIN code.'); if(slot&&!['Morning','Afternoon','Evening'].includes(slot))err(400,'Invalid appointment time preference.');
+        const fingerprint=digest(JSON.stringify(['booking',name,phone,brand,model,issue,method,date,locality,address,notes,email,pin,slot,whatsapp])),key=requestKey(b);const old=checkKey(key,fingerprint);if(old)return ok(res,bookingReplay(b,old),200);
+        const previous=db.prepare('SELECT ref FROM booking_submissions WHERE fingerprint=? AND created_at>?').get(fingerprint,Date.now()-120000);
+        if(previous) err(409,'An identical repair request was recently received. Check your original confirmation or contact the repair team.');
+        const ref = allocateRepairlyRef('RLM'); db.exec('BEGIN IMMEDIATE'); let access;
+        try {
+        const same=checkKey(key,fingerprint);if(same){db.exec('COMMIT');return ok(res,bookingReplay(b,same),200);}
+        if(db.prepare('SELECT ref FROM booking_submissions WHERE fingerprint=? AND created_at>?').get(fingerprint,Date.now()-120000))err(409,'Identical request already received.');
+        db.prepare('INSERT INTO bookings(ref,name,phone,brand,model,issue,method,date,locality,address,notes,consent_at,email,pin,slot,whatsapp) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(ref, name, phone, brand, model, issue, method, date, locality, address, notes, consentAt,email,pin,slot,whatsapp);
+        access=repairCenter.issueToken(ref,key?createHash('sha256').update('repairly-booking:'+b.request_key+':'+ref).digest('base64url'):undefined); rememberKey(key,fingerprint,ref); if(email)db.prepare('INSERT INTO rl_outbox(ref,event,channel) VALUES(?,?,?)').run(ref,'booking.received','customer_email'); db.prepare('DELETE FROM booking_submissions WHERE created_at<?').run(Date.now()-120000); db.prepare('INSERT INTO booking_submissions(fingerprint,ref,created_at) VALUES(?,?,?)').run(fingerprint,ref,Date.now()); db.exec('COMMIT'); } catch(e){db.exec('ROLLBACK');throw e;}
         void sendWebhook('repair.requested', { ref, name, phone, brand, model, issue, method, date, locality });
-        return ok(res, { ref, repair_access: repairCenter.issueToken(ref), status: 'pending', message: 'Repair request saved. Keep your reference ID to check status.' }, 201);
+        return ok(res, { ref, repair_access: access, status: 'pending', message: 'Repair request saved. Keep your reference ID to check status.' }, 201);
     }
     if (pathname === '/api/orders' && method === 'POST') {
         limit(req, 'orders', 12, 3600000); const b = await bodyJson(req); if (!Array.isArray(b.items) || b.items.length === 0 || b.items.length > 30) err(400, 'Cart must have 1–30 items.');
@@ -99,12 +113,14 @@ async function api(req, res, url) {
         if (!['Workshop collection', 'Request delivery', 'Discuss collection options'].includes(mode)) err(400, 'Invalid fulfillment method.');
         if (mode === 'Request delivery' && getSettings(db).delivery_enabled !== '1') err(400, 'Delivery requests are currently disabled.');
         if (mode === 'Request delivery' && !address) err(400, 'Address is needed for delivery requests.');
+        const key=requestKey(b),fingerprint=digest(JSON.stringify(['order',name,phone,locality,address,mode,notes,b.items.map(i=>i&&typeof i==='object'?[i.id,i.quantity]:i)]));const orderReplay=old=>{const o=db.prepare('SELECT ref,status,subtotal FROM orders WHERE ref=?').get(old.ref);if(!o)err(409,'Previous order unavailable.');return {...o,message:'Your earlier order was already received.'};};const old=checkKey(key,fingerprint);if(old)return ok(res,orderReplay(old));
         const verified = [], seen = new Set(); let total = 0;
         for (const item of b.items) { if (!item || typeof item !== 'object' || Array.isArray(item)) err(400,'Invalid cart item.'); const id = integer(item.id, 1, 100000000, 'product'), qty = integer(item.quantity, 1, 20, 'quantity'); if (seen.has(id)) err(400, 'Duplicate product entry.'); seen.add(id); const p = db.prepare('SELECT * FROM products WHERE id=? AND active=1').get(id); if (!p) err(400, 'Some parts are no longer listed.'); if (qty > p.stock) err(400, `Insufficient listed stock for ${p.name}.`); total += p.price * qty; verified.push({ p, qty }); }
         const ref = allocateRepairlyRef('RLP'); db.exec('BEGIN IMMEDIATE'); try {
+            const same=checkKey(key,fingerprint);if(same){db.exec('COMMIT');return ok(res,orderReplay(same));}
             const order = db.prepare('INSERT INTO orders(ref,name,phone,locality,address,mode,notes,subtotal,consent_at) VALUES(?,?,?,?,?,?,?,?,?)').run(ref, name, phone, locality, address, mode, notes, total, consentAt);
             const add = db.prepare('INSERT INTO order_items(order_id,product_id,sku,name,unit_price,quantity,sample) VALUES(?,?,?,?,?,?,?)'); for (const { p, qty } of verified) add.run(order.lastInsertRowid, p.id, p.sku, p.name, p.price, qty, p.sample);
-            db.exec('COMMIT');
+            rememberKey(key,fingerprint,ref);db.exec('COMMIT');
         } catch (e) { db.exec('ROLLBACK'); throw e; }
         void sendWebhook('parts.requested', { ref, name, phone, mode, locality, subtotal: total, items: verified.map(x => ({ sku: x.p.sku, quantity: x.qty })) });
         return ok(res, { ref, status: 'pending', subtotal: total, message: 'Order request received. Staff will verify part fit, stock, price, and fulfillment before confirmation. No payment has been taken.' }, 201);
@@ -119,7 +135,7 @@ async function api(req, res, url) {
         limit(req, 'track', 30, 3600000); const result = track(url.searchParams.get('ref'), url.searchParams.get('phone')); if (!result) err(404, 'No request found with that reference and phone number.'); return ok(res, result);
     }
     if (pathname === '/api/admin/access-info' && method === 'GET') return ok(res,{version:3});
-    if (pathname === '/api/admin/recovery-check' && method === 'POST') { limit(req,'recovery-check',8,900000); const b=await bodyJson(req); if(typeof b.token!=='string'||! /^[A-Za-z0-9_-]{43}$/.test(b.token)) err(403,'Recovery link invalid or expired.'); const row=db.prepare('SELECT expires_at FROM admin_recovery WHERE token_hash=?').get(hashToken(b.token)); if(!row||row.expires_at<=Date.now()) err(403,'Recovery link invalid or expired.'); return ok(res,{valid:true}); }
+    if (pathname === '/api/admin/recovery-check' && method === 'POST') { limit(req,'recovery-check',8,900000); const b=await bodyJson(req); if(typeof b.token!=='string'||! /^[A-Za-z0-9_-]{43}$/.test(b.token)) err(403,'Recovery link invalid or expired.'); if(!recoveryValid(db,b.token)) err(403,'Recovery link invalid or expired.'); return ok(res,{valid:true}); }
     if (pathname === '/api/admin/recover' && method === 'POST') { limit(req,'recover',8,900000); const b=await bodyJson(req); return ok(res,recoverOwner(db,b)); }
     if (pathname === '/api/admin/login' && method === 'POST') {
         limit(req, 'login', 8, 900000); const b = await bodyJson(req), login = str(b.username, 120).toLowerCase(), pass = String(b.password || '');
@@ -137,6 +153,12 @@ async function api(req, res, url) {
     }
     if (pathname.startsWith('/api/admin/')) {
         const s = auth(req);
+        if(s.role!=='owner') {
+            const ownRoutes=['/api/admin/email','/api/admin/password','/api/admin/logout'];
+            const managerRoutes=/^\/api\/admin\/(overview|bookings|orders|contacts|products|models|services)(?:\/.*)?$/;
+            if(!ownRoutes.includes(pathname) && !(s.permission==='manager' && managerRoutes.test(pathname))) err(403,'This operation requires owner or assigned manager permission.');
+        }
+        if(pathname==='/api/admin/recovery-codes'&&method==='POST'){limit(req,'offline-codes',5,900000);const b=await bodyJson(req);return ok(res,generateOfflineCodes(db,s.username,b.current));}
         if (pathname === '/api/admin/team' && method === 'GET') { if(owner(db)!==s.username)err(403,'Only the owner can manage team accounts.');return ok(res,db.prepare('SELECT username,created_at FROM admins ORDER BY username').all().map(a=>({...a,...profile(db,a.username)}))); }
         if (pathname === '/api/admin/team' && method === 'POST') { limit(req,'team',20,900000); return ok(res,manageTeam(db,s.username,await bodyJson(req))); }
         if (pathname === '/api/admin/email' && method === 'PATCH') { limit(req,'email',10,900000);return ok(res,updateEmail(db,s.username,await bodyJson(req))); }
@@ -156,7 +178,7 @@ async function api(req, res, url) {
         if (/^\/api\/admin\/bookings\/\d+$/.test(pathname) && method === 'PATCH') {
             repairCenter.guardLegacy(Number(pathname.split('/').at(-1)));
             const id = Number(pathname.split('/').at(-1)), b = await bodyJson(req), prev = db.prepare('SELECT status FROM bookings WHERE id=?').get(id); if (!prev) err(404, 'Booking not found.');
-            const status = str(b.status, 30); if (!states.includes(status)) err(400, 'Invalid status.'); const quote = b.quote === '' || b.quote === null || b.quote === undefined ? null : integer(b.quote, 0, 100000000, 'quote');
+            const status = str(b.status, 30); if (!states.includes(status)) err(400, 'Invalid status.'); if(!['pending','confirmed'].includes(status)||!['pending','confirmed'].includes(prev.status)||(prev.status==='confirmed'&&status==='pending')) err(409,'Use Repair Desk for repair progression, payment and cancellation.'); const quote = b.quote === '' || b.quote === null || b.quote === undefined ? null : integer(b.quote, 0, 100000000, 'quote');
             db.prepare("UPDATE bookings SET status=?,quote=?,admin_note=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(status, quote, str(b.admin_note, 800), id); repairCenter.syncLegacy(id); audit(s.username, 'booking_update', String(id) + ' -> ' + status); void sendWebhook('repair.status_changed', db.prepare('SELECT ref,name,phone,status,quote FROM bookings WHERE id=?').get(id)); return ok(res, { ok: true });
         }
         if (/^\/api\/admin\/orders\/\d+$/.test(pathname) && method === 'PATCH') {
@@ -176,11 +198,11 @@ async function api(req, res, url) {
             } catch (e) { db.exec('ROLLBACK'); throw e; }
         }
         if (/^\/api\/admin\/contacts\/\d+$/.test(pathname) && method === 'PATCH') {
-            const id = Number(pathname.split('/').at(-1)), b = await bodyJson(req); db.prepare('UPDATE contacts SET read=? WHERE id=?').run(b.read ? 1 : 0, id); return ok(res, { ok: true });
+            const id = Number(pathname.split('/').at(-1)), b = await bodyJson(req); if(!db.prepare('UPDATE contacts SET read=? WHERE id=?').run(b.read ? 1 : 0, id).changes) err(404,'Contact not found.'); return ok(res, { ok: true });
         }
 
         if (/^\/api\/admin\/contacts\/\d+$/.test(pathname) && method === 'DELETE') {
-            const id = Number(pathname.split('/').at(-1)); db.prepare('DELETE FROM contacts WHERE id=?').run(id); audit(s.username, 'contact_delete', String(id)); return ok(res, { ok: true });
+            const id = Number(pathname.split('/').at(-1)); if(!db.prepare('DELETE FROM contacts WHERE id=?').run(id).changes) err(404,'Contact not found.'); audit(s.username, 'contact_delete', String(id)); return ok(res, { ok: true });
         }
         if (pathname === '/api/admin/settings' && method === 'PATCH') {
             const b = await bodyJson(req), allowed = ['business_name', 'tagline', 'city', 'phone', 'whatsapp', 'email', 'address', 'hours', 'instagram', 'map_url', 'pickup_enabled', 'delivery_enabled', 'announcement', 'terms', 'warranty', 'privacy_contact'];
@@ -209,7 +231,7 @@ async function api(req, res, url) {
         }
         if (pathname === '/api/admin/models/bulk' && method === 'POST') {
             const b = await bodyJson(req); if (!Array.isArray(b.models) || b.models.length > 1000) err(400, 'Provide a models array with at most 1,000 rows.');
-            let added = 0; const ins = db.prepare('INSERT OR IGNORE INTO devices(brand,model) VALUES(?,?)'); for (const v of b.models) { if (!v || typeof v !== 'object' || Array.isArray(v)) err(400,'Invalid model row.'); const brand = required(v.brand, 'Brand', 80), model = required(v.model, 'Model', 120); added += ins.run(brand, model).changes; }
+            const rows=b.models.map(v=>{if(!v||typeof v!=='object'||Array.isArray(v))err(400,'Invalid model row.');return [required(v.brand,'Brand',80),required(v.model,'Model',120)];}); let added=0; const ins=db.prepare('INSERT OR IGNORE INTO devices(brand,model) VALUES(?,?)'); db.exec('BEGIN IMMEDIATE'); try {for(const row of rows) added+=ins.run(...row).changes;db.exec('COMMIT');}catch(e){db.exec('ROLLBACK');throw e;}
             audit(s.username, 'models_import', String(added)); return ok(res, { added });
         }
         if (pathname === '/api/admin/password' && method === 'PATCH') {

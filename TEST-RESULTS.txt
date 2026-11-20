@@ -1,0 +1,136 @@
+REPAIRLYLABS TEST RUN
+
+
+> repairlylabs@1.0.0 test
+> node --test tests/*.test.mjs
+
+TAP version 13
+# (node:3436) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: browser access: first account, recovery, team security, and existing data preservation
+ok 1 - browser access: first account, recovery, team security, and existing data preservation
+  ---
+  duration_ms: 911.479845
+  type: 'test'
+  ...
+# Subtest: legacy owner migration keeps existing credentials and owner identity
+ok 2 - legacy owner migration keeps existing credentials and owner identity
+  ---
+  duration_ms: 238.380613
+  type: 'test'
+  ...
+# (node:3437) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: audit regression: canonical routes, CSP, validation, credentials, rate limits, webhook
+ok 3 - audit regression: canonical routes, CSP, validation, credentials, rate limits, webhook
+  ---
+  duration_ms: 338.318922
+  type: 'test'
+  ...
+# (node:3438) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: collision retry, prefix separation, restart and deleted reference never reused
+ok 4 - collision retry, prefix separation, restart and deleted reference never reused
+  ---
+  duration_ms: 382.282591
+  type: 'test'
+  ...
+# Subtest: existing legacy references are reserved during migration
+ok 5 - existing legacy references are reserved during migration
+  ---
+  duration_ms: 0.760736
+  type: 'test'
+  ...
+# (node:3469) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: production regressions: intake, atomic import, staff permissions, QR claims, offline refunds, quality, stock and recovery codes
+ok 6 - production regressions: intake, atomic import, staff permissions, QR claims, offline refunds, quality, stock and recovery codes
+  ---
+  duration_ms: 878.147266
+  type: 'test'
+  ...
+# (node:3480) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: booking ingest, approval versions, secure access, advance and final payment, replay, statement, delivery
+ok 7 - booking ingest, approval versions, secure access, advance and final payment, replay, statement, delivery
+  ---
+  duration_ms: 45.739787
+  type: 'test'
+  ...
+# Subtest: notification queue persistence, failure retry, disabled channels, admin log
+ok 8 - notification queue persistence, failure retry, disabled channels, admin log
+  ---
+  duration_ms: 16.607793
+  type: 'test'
+  ...
+# Subtest: offline payment, cancellation safeguards, missing credentials fail closed
+ok 9 - offline payment, cancellation safeguards, missing credentials fail closed
+  ---
+  duration_ms: 7.895132
+  type: 'test'
+  ...
+# Subtest: private customer intake, IST notification, search and persistent unread status
+ok 10 - private customer intake, IST notification, search and persistent unread status
+  ---
+  duration_ms: 4.828814
+  type: 'test'
+  ...
+# Subtest: gateway failure handling: definite rejection retry, uncertain timeout lock, owner evidence release
+ok 11 - gateway failure handling: definite rejection retry, uncertain timeout lock, owner evidence release
+  ---
+  duration_ms: 7.478856
+  type: 'test'
+  ...
+# (node:3491) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Passed: site, catalog, booking, tracking, order, inventory, admin, CSRF, settings, contact, static routes
+# Subtest: complete customer + admin journey
+ok 12 - complete customer + admin journey
+  ---
+  duration_ms: 216.56273
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1548.751528
+
+FUNCTIONAL AUDIT
+
+
+> repairlylabs@1.0.0 audit
+> node tests/audit_suite.mjs
+
+(node:3515) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+--- STARTING COMPREHENSIVE AUDIT ---
+✓ PASS: API Health Check (/api/health)
+✓ PASS: Storefront Config (/api/config)
+✓ PASS: Phone Models API (/api/models)
+✓ PASS: Products Catalog & Filtering (/api/products)
+✓ PASS: Customer Booking Creation & Validation (/api/bookings)
+✓ PASS: Customer Request Tracking & Privacy (/api/track)
+✓ PASS: Customer Spare Parts Ordering & Tracking (/api/orders)
+✓ PASS: Contact Messaging & Email Validation (/api/contact)
+✓ PASS: Admin Authentication & Session Headers (/api/admin/login, /api/admin/me)
+✓ PASS: CSRF Protection on Mutating Admin Endpoints
+✓ PASS: Cross-Origin Request Forgery / Origin Header Blocking
+✓ PASS: Admin Overview & Metrics Reporting (/api/admin/overview)
+✓ PASS: Admin Booking Status & Quote Management
+✓ PASS: Inventory Safety: Sample Guard & Automatic Stock Deduction/Restoration
+✓ PASS: Contact Messages Read Status & Deletion (/api/admin/contacts)
+✓ PASS: Device Model Bulk Importer (/api/admin/models/bulk)
+✓ PASS: Product CRUD, Duplicate SKU Guard & Soft Deletion
+✓ PASS: Repair Service Management (/api/admin/services)
+✓ PASS: Storefront Public Settings Management (/api/admin/settings)
+✓ PASS: Admin Password Change & Session Invalidation (/api/admin/password)
+✓ PASS: CSV Export & Formula Injection Defense (/api/admin/export)
+✓ PASS: Static Asset Serving, MIME Types & Security Headers
+✓ PASS: Directory Traversal Security Protection
+
+--- AUDIT SUMMARY: 23 PASSED, 0 FAILED ---
