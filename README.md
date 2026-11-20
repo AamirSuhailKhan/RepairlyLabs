@@ -45,7 +45,7 @@ npm run setup
 npm start
 ```
 
-`npm run setup` asks for an administrator username and a **strong password of at least 12 characters**. It securely hashes the password into your local database. The website seeds its starter devices and sample parts automatically. Do **not** publish your real `.env` file or the `data/` folder.
+`npm run setup` asks for an administrator username and a **strong password of at least 8 characters (a longer unique password is recommended)**. It securely hashes the password into your local database. The website seeds its starter devices and sample parts automatically. Do **not** publish your real `.env` file or the `data/` folder.
 
 ### 3. Open the site
 
@@ -170,3 +170,7 @@ repairlylabs/
 - **Privacy/legal text is a starter**, not legal advice. You need to establish an accurate retention schedule and required policies for your business.
 
 The code works locally and is deployable after configuration; a successful launch additionally depends on real business verification, HTTPS hosting, and operational setup.
+
+
+## Latest upgrade
+See `REPORT-CLOSURE.md` for version 1.2.0 setup, parts payments, verified email recovery, finance reports, tests and remaining work.

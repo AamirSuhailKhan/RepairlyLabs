@@ -7,6 +7,10 @@ import { fileURLToPath } from 'node:url';
 import { openDatabase, getSettings, verifyPassword, hashToken, randomToken, publicRef, CATEGORIES } from './data.mjs';
 import { createRepairCenter } from './repair-center.mjs';
 import { initAccess, profile, findAccount, recoverOwner, manageTeam, updateEmail, owner, recoveryValid, generateOfflineCodes } from './admin-access.mjs';
+import { seoOrigin,sitemap,catalogPage } from './seo.mjs';
+import { financialReport,ledgerCSV } from './finance.mjs';
+import { createEmailRecovery } from './email-recovery.mjs';
+import { createPartsPayments } from './parts-payment.mjs';
 import { createReferenceAllocator } from './repair-reference.mjs';
 
 import { ROOT, DATA_DIR } from './config.mjs';
@@ -42,7 +46,7 @@ function rememberKey(key,fingerprint,ref){if(key)db.prepare('INSERT INTO request
 function bookingReplay(b,old){const token=createHash('sha256').update('repairly-booking:'+b.request_key+':'+old.ref).digest('base64url');const j=db.prepare('SELECT token_hash FROM rl_jobs WHERE ref=?').get(old.ref);if(!j)err(409,'The earlier request is unavailable. Contact staff.');return {ref:old.ref,status:'pending',...(j.token_hash===digest(token)?{repair_access:token}:{}),message:'Your earlier request was already saved.'};}
 function phoneNorm(v) { const n = String(v ?? '').replace(/[\s()+-]/g, '').replace(/^91(?=\d{10}$)/, ''); if (!/^[6-9]\d{9}$/.test(n)) err(400, 'Enter a valid 10-digit Indian mobile number.'); return n; }
 function integer(v, min, max, name) { const n = Number(v); if (!Number.isSafeInteger(n) || n < min || n > max) err(400, `Invalid ${name}.`); return n; }
-async function bodyJson(req) { const chunks = []; let size = 0; for await (const chunk of req) { size += chunk.length; if (size > (req.url?.split('?')[0]==='/api/repair-center/admin/qr-settings'?750000:/\/api\/repair-center\/job\/[A-Z0-9-]+\/qr-claim$/.test(req.url?.split('?')[0]||'')?750000:90000)) err(413, 'Request too large.'); chunks.push(chunk); } const all = Buffer.concat(chunks).toString('utf8'); try { const data = JSON.parse(all || '{}'); if (!data || typeof data !== 'object' || Array.isArray(data)) throw 0; return data; } catch { err(400, 'Invalid JSON.'); } }
+async function bodyJson(req) { const chunks = []; let size = 0; for await (const chunk of req) { size += chunk.length; if (size > (req.url?.split('?')[0]==='/api/repair-center/admin/qr-settings'?750000:/\/api\/repair-center\/job\/[A-Z0-9-]+\/qr-claim$/.test(req.url?.split('?')[0]||'')?750000:/^\/api\/parts-payment\/order\/[A-Z0-9-]+\/claim$/.test(req.url?.split('?')[0]||'')?750000:90000)) err(413, 'Request too large.'); chunks.push(chunk); } const all = Buffer.concat(chunks).toString('utf8'); try { const data = JSON.parse(all || '{}'); if (!data || typeof data !== 'object' || Array.isArray(data)) throw 0; return data; } catch { err(400, 'Invalid JSON.'); } }
 function trustedProxy(req) { return process.env.TRUST_PROXY === '1' && ['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress); }
 function clientIp(req) { const ip=req.socket.remoteAddress || 'unknown'; const candidate=String(req.headers['x-forwarded-for'] || '').split(',').at(-1).trim(); return trustedProxy(req) && isIP(candidate) ? candidate : ip; }
 const requests = new Map();
@@ -73,7 +77,10 @@ export const repairCenter = createRepairCenter({
     verifyOwner: (actor,password)=>owner(db)===actor && typeof password==='string' && password.length<=150 && verifyPassword(password,findAccount(db,actor).password_hash),
     worker: process.env.REPAIRLYLABS_TEST !== '1' && process.env.KASHIFIX_TEST !== '1'
 });
+const emailRecovery=createEmailRecovery({db});
+const partsPayments=createPartsPayments({db,auth,ok,bodyJson,limit});
 async function api(req, res, url) {
+    if(url.pathname.startsWith('/api/parts-payment/'))return partsPayments.handle(req,res,url);
     if (url.pathname.startsWith('/api/repair-center/')) return repairCenter.handle(req, res, url);
     const { pathname } = url; const method = req.method;
     if (pathname === '/api/health' && method === 'GET') return ok(res, { ok: true, app: 'RepairlyLabs', time: new Date().toISOString() });
@@ -113,17 +120,17 @@ async function api(req, res, url) {
         if (!['Workshop collection', 'Request delivery', 'Discuss collection options'].includes(mode)) err(400, 'Invalid fulfillment method.');
         if (mode === 'Request delivery' && getSettings(db).delivery_enabled !== '1') err(400, 'Delivery requests are currently disabled.');
         if (mode === 'Request delivery' && !address) err(400, 'Address is needed for delivery requests.');
-        const key=requestKey(b),fingerprint=digest(JSON.stringify(['order',name,phone,locality,address,mode,notes,b.items.map(i=>i&&typeof i==='object'?[i.id,i.quantity]:i)]));const orderReplay=old=>{const o=db.prepare('SELECT ref,status,subtotal FROM orders WHERE ref=?').get(old.ref);if(!o)err(409,'Previous order unavailable.');return {...o,message:'Your earlier order was already received.'};};const old=checkKey(key,fingerprint);if(old)return ok(res,orderReplay(old));
+        const key=requestKey(b),fingerprint=digest(JSON.stringify(['order',name,phone,locality,address,mode,notes,b.items.map(i=>i&&typeof i==='object'?[i.id,i.quantity]:i)]));const orderReplay=old=>{const o=db.prepare('SELECT ref,status,subtotal FROM orders WHERE ref=?').get(old.ref);if(!o)err(409,'Previous order unavailable.');return {...o,order_access:partsPayments.replay(o.ref,createHash('sha256').update(b.request_key+':parts:'+o.ref).digest('base64url')),message:'Your earlier order was already received.'};};const old=checkKey(key,fingerprint);if(old)return ok(res,orderReplay(old));
         const verified = [], seen = new Set(); let total = 0;
         for (const item of b.items) { if (!item || typeof item !== 'object' || Array.isArray(item)) err(400,'Invalid cart item.'); const id = integer(item.id, 1, 100000000, 'product'), qty = integer(item.quantity, 1, 20, 'quantity'); if (seen.has(id)) err(400, 'Duplicate product entry.'); seen.add(id); const p = db.prepare('SELECT * FROM products WHERE id=? AND active=1').get(id); if (!p) err(400, 'Some parts are no longer listed.'); if (qty > p.stock) err(400, `Insufficient listed stock for ${p.name}.`); total += p.price * qty; verified.push({ p, qty }); }
-        const ref = allocateRepairlyRef('RLP'); db.exec('BEGIN IMMEDIATE'); try {
+        const ref = allocateRepairlyRef('RLP'); let orderAccess; db.exec('BEGIN IMMEDIATE'); try {
             const same=checkKey(key,fingerprint);if(same){db.exec('COMMIT');return ok(res,orderReplay(same));}
             const order = db.prepare('INSERT INTO orders(ref,name,phone,locality,address,mode,notes,subtotal,consent_at) VALUES(?,?,?,?,?,?,?,?,?)').run(ref, name, phone, locality, address, mode, notes, total, consentAt);
             const add = db.prepare('INSERT INTO order_items(order_id,product_id,sku,name,unit_price,quantity,sample) VALUES(?,?,?,?,?,?,?)'); for (const { p, qty } of verified) add.run(order.lastInsertRowid, p.id, p.sku, p.name, p.price, qty, p.sample);
-            rememberKey(key,fingerprint,ref);db.exec('COMMIT');
+            orderAccess=partsPayments.issue(ref,key?createHash('sha256').update(b.request_key+':parts:'+ref).digest('base64url'):undefined);rememberKey(key,fingerprint,ref);db.exec('COMMIT');
         } catch (e) { db.exec('ROLLBACK'); throw e; }
         void sendWebhook('parts.requested', { ref, name, phone, mode, locality, subtotal: total, items: verified.map(x => ({ sku: x.p.sku, quantity: x.qty })) });
-        return ok(res, { ref, status: 'pending', subtotal: total, message: 'Order request received. Staff will verify part fit, stock, price, and fulfillment before confirmation. No payment has been taken.' }, 201);
+        return ok(res, { ref, order_access:orderAccess, status: 'pending', subtotal: total, message: 'Order request received. Staff will verify part fit, stock, price, and fulfillment before confirmation. No payment has been taken.' }, 201);
     }
     if (pathname === '/api/contact' && method === 'POST') {
         limit(req, 'contact', 8, 3600000); const b = await bodyJson(req); if (b.website) return ok(res, { received: true });
@@ -134,6 +141,9 @@ async function api(req, res, url) {
     if (pathname === '/api/track' && method === 'GET') {
         limit(req, 'track', 30, 3600000); const result = track(url.searchParams.get('ref'), url.searchParams.get('phone')); if (!result) err(404, 'No request found with that reference and phone number.'); return ok(res, result);
     }
+    if(pathname==='/api/account-recovery/request'&&method==='POST'){limit(req,'email-reset-request',5,900000);const b=await bodyJson(req);return ok(res,await emailRecovery.requestReset(b.email));}
+    if(pathname==='/api/account-recovery/verify'&&method==='POST'){limit(req,'email-verify',8,900000);const b=await bodyJson(req);return ok(res,emailRecovery.verify(b.token));}
+    if(pathname==='/api/account-recovery/reset'&&method==='POST'){limit(req,'email-reset',8,900000);const b=await bodyJson(req);return ok(res,emailRecovery.reset(b.token,b.password));}
     if (pathname === '/api/admin/access-info' && method === 'GET') return ok(res,{version:3});
     if (pathname === '/api/admin/recovery-check' && method === 'POST') { limit(req,'recovery-check',8,900000); const b=await bodyJson(req); if(typeof b.token!=='string'||! /^[A-Za-z0-9_-]{43}$/.test(b.token)) err(403,'Recovery link invalid or expired.'); if(!recoveryValid(db,b.token)) err(403,'Recovery link invalid or expired.'); return ok(res,{valid:true}); }
     if (pathname === '/api/admin/recover' && method === 'POST') { limit(req,'recover',8,900000); const b=await bodyJson(req); return ok(res,recoverOwner(db,b)); }
@@ -151,17 +161,23 @@ async function api(req, res, url) {
     if (pathname === '/api/admin/me' && method === 'GET') {
         const s = auth(req); return ok(res, { ...profile(db,s.username), csrf: s.csrf });
     }
+    if(pathname==='/api/finance/report'||pathname==='/api/finance/export'){const s=auth(req);if(s.role!=='owner'&&s.permission!=='accountant')err(403,'Finance access required.');if(method!=='GET')err(405,'Method not allowed.');if(pathname.endsWith('/report'))return ok(res,financialReport(db));audit(s.username,'finance_export');return respond(res,200,ledgerCSV(db),{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename=repairlylabs-payment-ledger.csv'});}
     if (pathname.startsWith('/api/admin/')) {
-        const s = auth(req);
+        const s = auth(req); const adminBody=async()=>{const b=await bodyJson(req);auth(req);return b;};
         if(s.role!=='owner') {
-            const ownRoutes=['/api/admin/email','/api/admin/password','/api/admin/logout'];
+            const ownRoutes=['/api/admin/email','/api/admin/password','/api/admin/logout','/api/admin/sessions'];
             const managerRoutes=/^\/api\/admin\/(overview|bookings|orders|contacts|products|models|services)(?:\/.*)?$/;
             if(!ownRoutes.includes(pathname) && !(s.permission==='manager' && managerRoutes.test(pathname))) err(403,'This operation requires owner or assigned manager permission.');
         }
-        if(pathname==='/api/admin/recovery-codes'&&method==='POST'){limit(req,'offline-codes',5,900000);const b=await bodyJson(req);return ok(res,generateOfflineCodes(db,s.username,b.current));}
+        if(pathname==='/api/admin/audit-log'&&method==='GET'){const offset=Math.max(0,Math.min(1000000,Math.trunc(Number(url.searchParams.get('offset'))||0)));return ok(res,{items:db.prepare("SELECT username actor,action,details ref,created_at FROM audit UNION ALL SELECT actor,action,ref,created_at FROM rl_audit ORDER BY created_at DESC LIMIT 100 OFFSET ?").all(offset),offset});}
+        if(pathname==='/api/admin/email-recovery'&&method==='GET')return ok(res,emailRecovery.info(s.username));
+        if(pathname==='/api/admin/email-recovery'&&method==='POST'){limit(req,'email-verification-start',5,900000);const b=await adminBody();auth(req);return ok(res,await emailRecovery.beginVerification(s.username,b.current));}
+        if(pathname==='/api/admin/sessions'&&method==='GET')return ok(res,db.prepare('SELECT created_at,expires_at,token_hash=? current FROM sessions WHERE username=? AND expires_at>? ORDER BY created_at DESC').all(hashToken(cookie(req)),s.username,Date.now()));
+        if(pathname==='/api/admin/sessions'&&method==='POST'){limit(req,'session-revoke',5,900000);const b=await adminBody();auth(req);if(typeof b.current!=='string'||b.current.length>150||!verifyPassword(b.current,findAccount(db,s.username).password_hash))err(403,'Current password required.');db.prepare('DELETE FROM sessions WHERE username=? AND token_hash<>?').run(s.username,hashToken(cookie(req)));audit(s.username,'other_sessions_revoked');return ok(res,{ok:true});}
+        if(pathname==='/api/admin/recovery-codes'&&method==='POST'){limit(req,'offline-codes',5,900000);const b=await adminBody();return ok(res,generateOfflineCodes(db,s.username,b.current));}
         if (pathname === '/api/admin/team' && method === 'GET') { if(owner(db)!==s.username)err(403,'Only the owner can manage team accounts.');return ok(res,db.prepare('SELECT username,created_at FROM admins ORDER BY username').all().map(a=>({...a,...profile(db,a.username)}))); }
-        if (pathname === '/api/admin/team' && method === 'POST') { limit(req,'team',20,900000); return ok(res,manageTeam(db,s.username,await bodyJson(req))); }
-        if (pathname === '/api/admin/email' && method === 'PATCH') { limit(req,'email',10,900000);return ok(res,updateEmail(db,s.username,await bodyJson(req))); }
+        if (pathname === '/api/admin/team' && method === 'POST') { limit(req,'team',20,900000); return ok(res,manageTeam(db,s.username,await adminBody())); }
+        if (pathname === '/api/admin/email' && method === 'PATCH') { limit(req,'email',10,900000);return ok(res,updateEmail(db,s.username,await adminBody())); }
         if (pathname === '/api/admin/logout' && method === 'POST') {
             db.prepare('DELETE FROM sessions WHERE token_hash=?').run(hashToken(cookie(req))); return respond(res, 200, { ok: true }, { 'Set-Cookie': `${cookieName}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${IS_PROD ? '; Secure' : ''}` });
         }
@@ -177,15 +193,16 @@ async function api(req, res, url) {
         if (pathname === '/api/admin/settings' && method === 'GET') return ok(res, getSettings(db));
         if (/^\/api\/admin\/bookings\/\d+$/.test(pathname) && method === 'PATCH') {
             repairCenter.guardLegacy(Number(pathname.split('/').at(-1)));
-            const id = Number(pathname.split('/').at(-1)), b = await bodyJson(req), prev = db.prepare('SELECT status FROM bookings WHERE id=?').get(id); if (!prev) err(404, 'Booking not found.');
+            const id = Number(pathname.split('/').at(-1)), b = await adminBody(); repairCenter.guardLegacy(id); const prev = db.prepare('SELECT status FROM bookings WHERE id=?').get(id); if (!prev) err(404, 'Booking not found.');
             const status = str(b.status, 30); if (!states.includes(status)) err(400, 'Invalid status.'); if(!['pending','confirmed'].includes(status)||!['pending','confirmed'].includes(prev.status)||(prev.status==='confirmed'&&status==='pending')) err(409,'Use Repair Desk for repair progression, payment and cancellation.'); const quote = b.quote === '' || b.quote === null || b.quote === undefined ? null : integer(b.quote, 0, 100000000, 'quote');
             db.prepare("UPDATE bookings SET status=?,quote=?,admin_note=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(status, quote, str(b.admin_note, 800), id); repairCenter.syncLegacy(id); audit(s.username, 'booking_update', String(id) + ' -> ' + status); void sendWebhook('repair.status_changed', db.prepare('SELECT ref,name,phone,status,quote FROM bookings WHERE id=?').get(id)); return ok(res, { ok: true });
         }
         if (/^\/api\/admin\/orders\/\d+$/.test(pathname) && method === 'PATCH') {
-            const id = Number(pathname.split('/').at(-1)), b = await bodyJson(req), next = str(b.status, 30); db.exec('BEGIN IMMEDIATE');
+            const id = Number(pathname.split('/').at(-1)), b = await adminBody(), next = str(b.status, 30); db.exec('BEGIN IMMEDIATE');
             try {
                 const o = db.prepare('SELECT * FROM orders WHERE id=?').get(id); if (!o) err(404, 'Order not found.');
                 if (!states.includes(next) || !orderTransitions[o.status]?.includes(next) && next !== o.status) err(400, 'This order status transition is not permitted.');
+                partsPayments.checkTransition(o,next);
                 if (o.status === 'pending' && next === 'confirmed') {
                     const items = db.prepare('SELECT product_id,quantity,unit_price FROM order_items WHERE order_id=?').all(id);
                     for (const p of items) { const row = db.prepare('SELECT stock,sample,price,active FROM products WHERE id=?').get(p.product_id); if (!row || row.stock < p.quantity) err(409, 'Insufficient stock to confirm this order.'); if (row.sample || !row.active) err(409, 'Verify real inventory and remove the sample flag before confirming.'); if (row.price !== p.unit_price) err(409, 'Price has changed since the request. Contact customer and create an updated order before confirmation.'); }
@@ -198,20 +215,20 @@ async function api(req, res, url) {
             } catch (e) { db.exec('ROLLBACK'); throw e; }
         }
         if (/^\/api\/admin\/contacts\/\d+$/.test(pathname) && method === 'PATCH') {
-            const id = Number(pathname.split('/').at(-1)), b = await bodyJson(req); if(!db.prepare('UPDATE contacts SET read=? WHERE id=?').run(b.read ? 1 : 0, id).changes) err(404,'Contact not found.'); return ok(res, { ok: true });
+            const id = Number(pathname.split('/').at(-1)), b = await adminBody(); if(!db.prepare('UPDATE contacts SET read=? WHERE id=?').run(b.read ? 1 : 0, id).changes) err(404,'Contact not found.'); return ok(res, { ok: true });
         }
 
         if (/^\/api\/admin\/contacts\/\d+$/.test(pathname) && method === 'DELETE') {
             const id = Number(pathname.split('/').at(-1)); if(!db.prepare('DELETE FROM contacts WHERE id=?').run(id).changes) err(404,'Contact not found.'); audit(s.username, 'contact_delete', String(id)); return ok(res, { ok: true });
         }
         if (pathname === '/api/admin/settings' && method === 'PATCH') {
-            const b = await bodyJson(req), allowed = ['business_name', 'tagline', 'city', 'phone', 'whatsapp', 'email', 'address', 'hours', 'instagram', 'map_url', 'pickup_enabled', 'delivery_enabled', 'announcement', 'terms', 'warranty', 'privacy_contact'];
+            const b = await adminBody(), allowed = ['business_name', 'tagline', 'city', 'phone', 'whatsapp', 'email', 'address', 'hours', 'instagram', 'map_url', 'pickup_enabled', 'delivery_enabled', 'announcement', 'terms', 'warranty', 'privacy_contact'];
             const update = db.prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value');
             for (const key of allowed) if (Object.hasOwn(b, key)) { let v = str(b[key], ['terms', 'warranty', 'privacy_contact'].includes(key) ? 1500 : 350); if (key.endsWith('_enabled')) v = v === '1' ? '1' : '0'; update.run(key, v); }
             audit(s.username, 'settings_update'); return ok(res, { ok: true });
         }
         if (pathname === '/api/admin/products' && method === 'POST' || /^\/api\/admin\/products\/\d+$/.test(pathname) && method === 'PUT') {
-            const b = await bodyJson(req), name = required(b.name, 'Part name', 130), brand = required(b.brand, 'Brand', 80), model = required(b.model, 'Model', 120), cat = required(b.category, 'Category', 80), sku = required(b.sku, 'SKU', 60), price = integer(b.price, 0, 10000000, 'price'), stock = integer(b.stock, 0, 100000, 'stock');
+            const b = await adminBody(), name = required(b.name, 'Part name', 130), brand = required(b.brand, 'Brand', 80), model = required(b.model, 'Model', 120), cat = required(b.category, 'Category', 80), sku = required(b.sku, 'SKU', 60), price = integer(b.price, 0, 10000000, 'price'), stock = integer(b.stock, 0, 100000, 'stock');
             if (!CATEGORIES.includes(cat)) err(400, 'Invalid category.');
             const values = [sku, name, brand, model, cat, str(b.grade, 80) || 'Ask for details', price, stock, b.active ? 1 : 0, b.featured ? 1 : 0, b.sample ? 1 : 0, str(b.description, 900), str(b.image_kind, 30) || 'display'];
             try {
@@ -224,18 +241,18 @@ async function api(req, res, url) {
             const id = Number(pathname.split('/').at(-1)); db.prepare('UPDATE products SET active=0 WHERE id=?').run(id); audit(s.username, 'product_hide', String(id)); return ok(res, { ok: true });
         }
         if (pathname === '/api/admin/services' && method === 'POST') {
-            const b = await bodyJson(req), slug = required(b.slug, 'Slug', 50).toLowerCase().replace(/[^a-z0-9-]/g, '-'); const vals = [slug, required(b.title, 'Title', 110), required(b.description, 'Description', 400), str(b.icon, 40) || 'wrench', str(b.tag, 60), b.active ? 1 : 0, integer(b.sort_order ?? 0, 0, 999, 'sort order')];
+            const b = await adminBody(), slug = required(b.slug, 'Slug', 50).toLowerCase().replace(/[^a-z0-9-]/g, '-'); const vals = [slug, required(b.title, 'Title', 110), required(b.description, 'Description', 400), str(b.icon, 40) || 'wrench', str(b.tag, 60), b.active ? 1 : 0, integer(b.sort_order ?? 0, 0, 999, 'sort order')];
             if (b.id) { db.prepare('UPDATE services SET slug=?,title=?,description=?,icon=?,tag=?,active=?,sort_order=? WHERE id=?').run(...vals, integer(b.id, 1, 100000, 'service id')); }
             else db.prepare('INSERT INTO services(slug,title,description,icon,tag,active,sort_order) VALUES(?,?,?,?,?,?,?)').run(...vals);
             audit(s.username, 'service_save', slug); return ok(res, { ok: true });
         }
         if (pathname === '/api/admin/models/bulk' && method === 'POST') {
-            const b = await bodyJson(req); if (!Array.isArray(b.models) || b.models.length > 1000) err(400, 'Provide a models array with at most 1,000 rows.');
+            const b = await adminBody(); if (!Array.isArray(b.models) || b.models.length > 1000) err(400, 'Provide a models array with at most 1,000 rows.');
             const rows=b.models.map(v=>{if(!v||typeof v!=='object'||Array.isArray(v))err(400,'Invalid model row.');return [required(v.brand,'Brand',80),required(v.model,'Model',120)];}); let added=0; const ins=db.prepare('INSERT OR IGNORE INTO devices(brand,model) VALUES(?,?)'); db.exec('BEGIN IMMEDIATE'); try {for(const row of rows) added+=ins.run(...row).changes;db.exec('COMMIT');}catch(e){db.exec('ROLLBACK');throw e;}
             audit(s.username, 'models_import', String(added)); return ok(res, { added });
         }
         if (pathname === '/api/admin/password' && method === 'PATCH') {
-            const b = await bodyJson(req), a = db.prepare('SELECT password_hash FROM admins WHERE username=?').get(s.username); if (!verifyPassword(String(b.current || ''), a.password_hash)) err(403, 'Current password is incorrect.');
+            const b = await adminBody(), a = db.prepare('SELECT password_hash FROM admins WHERE username=?').get(s.username); if (typeof b.current!=='string'||b.current.length>150||!verifyPassword(b.current, a.password_hash)) err(403, 'Current password is incorrect.');
             if (typeof b.next !== 'string' || b.next.length < 8 || b.next.length > 150) err(400, 'New password must contain at least 8 characters.');
             const { passwordHash } = await import('./data.mjs'); db.prepare('UPDATE admins SET password_hash=? WHERE username=?').run(passwordHash(b.next), s.username); db.prepare('DELETE FROM sessions WHERE username=? AND token_hash<>?').run(s.username, hashToken(cookie(req))); audit(s.username, 'password_change'); return ok(res, { ok: true });
         }
@@ -254,18 +271,23 @@ function staticFile(req, res, url) {
     if (req.method !== 'GET' && req.method !== 'HEAD') return respond(res, 405, { error: 'Method not allowed.' });
     let p; try { p = decodeURIComponent(url.pathname); } catch { err(400, 'Invalid URL.'); }
     if (p.includes('\0') || p.includes('\\') || p.split('/').includes('..')) err(400, 'Invalid path.');
+    const canonical=seoOrigin();
+    if(p==='/sitemap.xml'){if(!canonical)err(404,'Set PUBLIC_ORIGIN to your HTTPS domain to publish the sitemap.');res.writeHead(200,{...headers,'Content-Type':'application/xml; charset=utf-8','Cache-Control':'no-cache'});return res.end(req.method==='HEAD'?undefined:sitemap(db,canonical));}
+    if(p==='/robots.txt'){const robots='User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nDisallow: /repair-center\nDisallow: /parts-payment\nDisallow: /account-recovery\nDisallow: /track\n'+(canonical?'Sitemap: '+canonical+'/sitemap.xml\n':'');res.writeHead(200,{...headers,'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-cache'});return res.end(req.method==='HEAD'?undefined:robots);}
+    if(/^\/(service|part)\//.test(p)){const content=catalogPage(db,p,getSettings(db),canonical);if(!content)err(404,'Listing not found.');res.writeHead(200,{...headers,'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache'});return res.end(req.method==='HEAD'?undefined:content);}
     const target = resolve(WEBROOT, '.' + p);
     if (!target.startsWith(WEBROOT + sep) && target !== WEBROOT) err(403, 'Forbidden.');
-    let file = ['/repair-center','/repair-center/'].includes(p) ? join(WEBROOT,'repair-center','index.html') : target;
+    let file = ['/repair-center','/repair-center/'].includes(p) ? join(WEBROOT,'repair-center','index.html') : ['/parts-payment','/parts-payment/'].includes(p)?join(WEBROOT,'parts-payment','index.html'):['/account-recovery','/account-recovery/'].includes(p)?join(WEBROOT,'account-recovery','index.html'):target;
     if (!existsSync(file) || !statSync(file).isFile()) { if (extname(p)) err(404, 'Not found.'); file = join(WEBROOT, 'index.html'); }
-    const ext = extname(file); const data = readFileSync(file);
+    const ext = extname(file); let data = readFileSync(file);if(file===join(WEBROOT,'index.html')&&canonical&&['/','/repairs','/parts','/about','/contact','/privacy'].includes(p))data=Buffer.from(data.toString().replace('</head>','<link rel="canonical" href="'+canonical+p+'">\n</head>'));
+    const privatePage=/^\/(admin|track|repair-center|parts-payment|account-recovery)(?:\/|$)/.test(p);
     const pageHeaders = file === join(WEBROOT,'repair-center','index.html') ? {
         ...headers,
         'Content-Security-Policy': "default-src 'self'; script-src 'self' https://checkout.razorpay.com https://*.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.razorpay.com; img-src 'self' data: https://*.razorpay.com; connect-src 'self' https://*.razorpay.com; frame-src https://*.razorpay.com https://*.razorpay.co.in; font-src 'self' data: https://fonts.gstatic.com https://*.razorpay.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self' https://*.razorpay.com;",
         'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
         'Referrer-Policy': 'no-referrer'
     } : headers;
-    res.writeHead(200, { ...pageHeaders, 'Content-Type': mime[ext] || 'application/octet-stream', 'Cache-Control': ['.html','.js','.css'].includes(ext) ? 'no-cache' : 'public, max-age=3600' }); if (req.method === 'HEAD') res.end(); else res.end(data);
+    res.writeHead(200, { ...pageHeaders, ...(privatePage?{'X-Robots-Tag':'noindex, nofollow','Referrer-Policy':'no-referrer'}:{}), 'Content-Type': mime[ext] || 'application/octet-stream', 'Cache-Control': ['.html','.js','.css'].includes(ext) ? 'no-cache' : 'public, max-age=3600' }); if (req.method === 'HEAD') res.end(); else res.end(data);
 }
 export const server = createServer(async (req, res) => {
     try {

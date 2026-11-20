@@ -1,16 +1,19 @@
 {
   "name": "repairlylabs",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "description": "Dependency-free full-stack mobile repair and spare parts storefront for Varanasi",
-  "engines": { "node": ">=22.13.0" },
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "start": "node src/server.mjs",
     "dev": "node --watch src/server.mjs",
     "setup": "node scripts/setup.mjs",
     "backup": "node scripts/backup.mjs",
     "test": "node --test tests/*.test.mjs",
-    "audit": "node tests/audit_suite.mjs"
+    "audit": "node tests/audit_suite.mjs",
+    "restore:check": "node scripts/restore-check.mjs"
   }
 }
