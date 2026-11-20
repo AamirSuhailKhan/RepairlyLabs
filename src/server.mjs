@@ -10,6 +10,8 @@ import { initAccess, profile, findAccount, recoverOwner, manageTeam, updateEmail
 import { seoOrigin,sitemap,catalogPage } from './seo.mjs';
 import { financialReport,ledgerCSV } from './finance.mjs';
 import { createEmailRecovery } from './email-recovery.mjs';
+import { createGatewayExtensions } from './gateway-extensions.mjs';
+import { createExtendedOps } from './extended-ops.mjs';
 import { createPartsPayments } from './parts-payment.mjs';
 import { createReferenceAllocator } from './repair-reference.mjs';
 
@@ -46,7 +48,7 @@ function rememberKey(key,fingerprint,ref){if(key)db.prepare('INSERT INTO request
 function bookingReplay(b,old){const token=createHash('sha256').update('repairly-booking:'+b.request_key+':'+old.ref).digest('base64url');const j=db.prepare('SELECT token_hash FROM rl_jobs WHERE ref=?').get(old.ref);if(!j)err(409,'The earlier request is unavailable. Contact staff.');return {ref:old.ref,status:'pending',...(j.token_hash===digest(token)?{repair_access:token}:{}),message:'Your earlier request was already saved.'};}
 function phoneNorm(v) { const n = String(v ?? '').replace(/[\s()+-]/g, '').replace(/^91(?=\d{10}$)/, ''); if (!/^[6-9]\d{9}$/.test(n)) err(400, 'Enter a valid 10-digit Indian mobile number.'); return n; }
 function integer(v, min, max, name) { const n = Number(v); if (!Number.isSafeInteger(n) || n < min || n > max) err(400, `Invalid ${name}.`); return n; }
-async function bodyJson(req) { const chunks = []; let size = 0; for await (const chunk of req) { size += chunk.length; if (size > (req.url?.split('?')[0]==='/api/repair-center/admin/qr-settings'?750000:/\/api\/repair-center\/job\/[A-Z0-9-]+\/qr-claim$/.test(req.url?.split('?')[0]||'')?750000:/^\/api\/parts-payment\/order\/[A-Z0-9-]+\/claim$/.test(req.url?.split('?')[0]||'')?750000:90000)) err(413, 'Request too large.'); chunks.push(chunk); } const all = Buffer.concat(chunks).toString('utf8'); try { const data = JSON.parse(all || '{}'); if (!data || typeof data !== 'object' || Array.isArray(data)) throw 0; return data; } catch { err(400, 'Invalid JSON.'); } }
+async function bodyJson(req) { const chunks = []; let size = 0; for await (const chunk of req) { size += chunk.length; if (size > (/^\/api\/extended\/job\/[A-Z0-9-]+\/photos$/.test(req.url?.split('?')[0]||'')?750000:req.url?.split('?')[0]==='/api/repair-center/admin/qr-settings'?750000:/\/api\/repair-center\/job\/[A-Z0-9-]+\/qr-claim$/.test(req.url?.split('?')[0]||'')?750000:/^\/api\/parts-payment\/order\/[A-Z0-9-]+\/claim$/.test(req.url?.split('?')[0]||'')?750000:90000)) err(413, 'Request too large.'); chunks.push(chunk); } const all = Buffer.concat(chunks).toString('utf8'); try { const data = JSON.parse(all || '{}'); if (!data || typeof data !== 'object' || Array.isArray(data)) throw 0; return data; } catch { err(400, 'Invalid JSON.'); } }
 function trustedProxy(req) { return process.env.TRUST_PROXY === '1' && ['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress); }
 function clientIp(req) { const ip=req.socket.remoteAddress || 'unknown'; const candidate=String(req.headers['x-forwarded-for'] || '').split(',').at(-1).trim(); return trustedProxy(req) && isIP(candidate) ? candidate : ip; }
 const requests = new Map();
@@ -75,14 +77,20 @@ export const repairCenter = createRepairCenter({
     limit,
     respond,
     verifyOwner: (actor,password)=>owner(db)===actor && typeof password==='string' && password.length<=150 && verifyPassword(password,findAccount(db,actor).password_hash),
+    phoneSession: (req,ref)=>extended.phoneSession(req,ref),
     worker: process.env.REPAIRLYLABS_TEST !== '1' && process.env.KASHIFIX_TEST !== '1'
 });
 const emailRecovery=createEmailRecovery({db});
-const partsPayments=createPartsPayments({db,auth,ok,bodyJson,limit});
+const partsPayments=createPartsPayments({db,auth,ok,bodyJson,limit,phoneSession:(req,ref)=>extended.phoneSession(req,ref)});
+const extended=createExtendedOps({db,auth,ok,bodyJson,limit,verifyPassword,findAccount});
+const gatewayExtensions=createGatewayExtensions({db,auth,ok,bodyJson,limit,access:extended.access,worker:process.env.REPAIRLYLABS_TEST!=='1'});
 async function api(req, res, url) {
+    if(url.pathname.startsWith('/api/gateway-extension/'))return gatewayExtensions.handle(req,res,url);
+    if(url.pathname.startsWith('/api/extended/'))return extended.handle(req,res,url);
     if(url.pathname.startsWith('/api/parts-payment/'))return partsPayments.handle(req,res,url);
     if (url.pathname.startsWith('/api/repair-center/')) return repairCenter.handle(req, res, url);
     const { pathname } = url; const method = req.method;
+    if(pathname==='/api/ready'&&method==='GET'){try{db.prepare('SELECT 1').get();return ok(res,{ok:true});}catch{return ok(res,{ok:false},503);}}
     if (pathname === '/api/health' && method === 'GET') return ok(res, { ok: true, app: 'RepairlyLabs', time: new Date().toISOString() });
     if (pathname === '/api/config' && method === 'GET') return ok(res, siteConfig());
     if (pathname === '/api/models' && method === 'GET') {
@@ -109,8 +117,9 @@ async function api(req, res, url) {
         try {
         const same=checkKey(key,fingerprint);if(same){db.exec('COMMIT');return ok(res,bookingReplay(b,same),200);}
         if(db.prepare('SELECT ref FROM booking_submissions WHERE fingerprint=? AND created_at>?').get(fingerprint,Date.now()-120000))err(409,'Identical request already received.');
+        extended.capacity(date,slot);
         db.prepare('INSERT INTO bookings(ref,name,phone,brand,model,issue,method,date,locality,address,notes,consent_at,email,pin,slot,whatsapp) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(ref, name, phone, brand, model, issue, method, date, locality, address, notes, consentAt,email,pin,slot,whatsapp);
-        access=repairCenter.issueToken(ref,key?createHash('sha256').update('repairly-booking:'+b.request_key+':'+ref).digest('base64url'):undefined); rememberKey(key,fingerprint,ref); if(email)db.prepare('INSERT INTO rl_outbox(ref,event,channel) VALUES(?,?,?)').run(ref,'booking.received','customer_email'); db.prepare('DELETE FROM booking_submissions WHERE created_at<?').run(Date.now()-120000); db.prepare('INSERT INTO booking_submissions(fingerprint,ref,created_at) VALUES(?,?,?)').run(fingerprint,ref,Date.now()); db.exec('COMMIT'); } catch(e){db.exec('ROLLBACK');throw e;}
+        access=repairCenter.issueToken(ref,key?createHash('sha256').update('repairly-booking:'+b.request_key+':'+ref).digest('base64url'):undefined); rememberKey(key,fingerprint,ref); if(whatsapp)db.prepare('INSERT INTO rl_outbox(ref,event,channel) VALUES(?,?,?)').run(ref,'booking.received','customer_whatsapp'); if(email)db.prepare('INSERT INTO rl_outbox(ref,event,channel) VALUES(?,?,?)').run(ref,'booking.received','customer_email'); db.prepare('DELETE FROM booking_submissions WHERE created_at<?').run(Date.now()-120000); db.prepare('INSERT INTO booking_submissions(fingerprint,ref,created_at) VALUES(?,?,?)').run(fingerprint,ref,Date.now()); db.exec('COMMIT'); } catch(e){db.exec('ROLLBACK');throw e;}
         void sendWebhook('repair.requested', { ref, name, phone, brand, model, issue, method, date, locality });
         return ok(res, { ref, repair_access: access, status: 'pending', message: 'Repair request saved. Keep your reference ID to check status.' }, 201);
     }
@@ -152,6 +161,7 @@ async function api(req, res, url) {
         const account = findAccount(db,login);
         if (!account || account.disabled || pass.length>150 || !verifyPassword(pass, account.password_hash)) err(401, 'Incorrect username or password.');
         const username=account.username;
+        extended.verifyMfa(username,b.otp);
         const token = randomToken(), csrf = randomToken(24), expiration = Date.now() + 7 * 24 * 60 * 60 * 1000;
         db.prepare('DELETE FROM sessions WHERE expires_at<?').run(Date.now());
         db.prepare('INSERT INTO sessions(token_hash,username,csrf,expires_at) VALUES(?,?,?,?)').run(hashToken(token), username, csrf, expiration);
@@ -273,26 +283,27 @@ function staticFile(req, res, url) {
     if (p.includes('\0') || p.includes('\\') || p.split('/').includes('..')) err(400, 'Invalid path.');
     const canonical=seoOrigin();
     if(p==='/sitemap.xml'){if(!canonical)err(404,'Set PUBLIC_ORIGIN to your HTTPS domain to publish the sitemap.');res.writeHead(200,{...headers,'Content-Type':'application/xml; charset=utf-8','Cache-Control':'no-cache'});return res.end(req.method==='HEAD'?undefined:sitemap(db,canonical));}
-    if(p==='/robots.txt'){const robots='User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nDisallow: /repair-center\nDisallow: /parts-payment\nDisallow: /account-recovery\nDisallow: /track\n'+(canonical?'Sitemap: '+canonical+'/sitemap.xml\n':'');res.writeHead(200,{...headers,'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-cache'});return res.end(req.method==='HEAD'?undefined:robots);}
+    if(p==='/robots.txt'){const robots='User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nDisallow: /repair-center\nDisallow: /parts-payment\nDisallow: /account-recovery\nDisallow: /operations\nDisallow: /track\n'+(canonical?'Sitemap: '+canonical+'/sitemap.xml\n':'');res.writeHead(200,{...headers,'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-cache'});return res.end(req.method==='HEAD'?undefined:robots);}
     if(/^\/(service|part)\//.test(p)){const content=catalogPage(db,p,getSettings(db),canonical);if(!content)err(404,'Listing not found.');res.writeHead(200,{...headers,'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache'});return res.end(req.method==='HEAD'?undefined:content);}
     const target = resolve(WEBROOT, '.' + p);
     if (!target.startsWith(WEBROOT + sep) && target !== WEBROOT) err(403, 'Forbidden.');
-    let file = ['/repair-center','/repair-center/'].includes(p) ? join(WEBROOT,'repair-center','index.html') : ['/parts-payment','/parts-payment/'].includes(p)?join(WEBROOT,'parts-payment','index.html'):['/account-recovery','/account-recovery/'].includes(p)?join(WEBROOT,'account-recovery','index.html'):target;
+    let file = ['/repair-center','/repair-center/'].includes(p) ? join(WEBROOT,'repair-center','index.html') : ['/parts-payment','/parts-payment/'].includes(p)?join(WEBROOT,'parts-payment','index.html'):['/account-recovery','/account-recovery/'].includes(p)?join(WEBROOT,'account-recovery','index.html'):['/operations','/operations/'].includes(p)?join(WEBROOT,'operations','index.html'):target;
     if (!existsSync(file) || !statSync(file).isFile()) { if (extname(p)) err(404, 'Not found.'); file = join(WEBROOT, 'index.html'); }
     const ext = extname(file); let data = readFileSync(file);if(file===join(WEBROOT,'index.html')&&canonical&&['/','/repairs','/parts','/about','/contact','/privacy'].includes(p))data=Buffer.from(data.toString().replace('</head>','<link rel="canonical" href="'+canonical+p+'">\n</head>'));
-    const privatePage=/^\/(admin|track|repair-center|parts-payment|account-recovery)(?:\/|$)/.test(p);
+    const privatePage=/^\/(admin|track|repair-center|parts-payment|account-recovery|operations)(?:\/|$)/.test(p);
     const pageHeaders = file === join(WEBROOT,'repair-center','index.html') ? {
         ...headers,
         'Content-Security-Policy': "default-src 'self'; script-src 'self' https://checkout.razorpay.com https://*.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.razorpay.com; img-src 'self' data: https://*.razorpay.com; connect-src 'self' https://*.razorpay.com; frame-src https://*.razorpay.com https://*.razorpay.co.in; font-src 'self' data: https://fonts.gstatic.com https://*.razorpay.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self' https://*.razorpay.com;",
         'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
         'Referrer-Policy': 'no-referrer'
-    } : headers;
+    } : p.startsWith('/operations') ? {...headers,'Content-Security-Policy':headers['Content-Security-Policy'].replace("img-src 'self' data:","img-src 'self' data: https://*.razorpay.com https://*.razorpay.co.in")} : headers;
     res.writeHead(200, { ...pageHeaders, ...(privatePage?{'X-Robots-Tag':'noindex, nofollow','Referrer-Policy':'no-referrer'}:{}), 'Content-Type': mime[ext] || 'application/octet-stream', 'Cache-Control': ['.html','.js','.css'].includes(ext) ? 'no-cache' : 'public, max-age=3600' }); if (req.method === 'HEAD') res.end(); else res.end(data);
 }
 export const server = createServer(async (req, res) => {
+    const started=Date.now();if(process.env.RL_REQUEST_LOG==='1')res.once('finish',()=>{const raw=String(req.url||'').split('?')[0];const group=raw.startsWith('/api/')?'api/'+(raw.split('/')[2]||'other'):'page';const safe=/^(api\/[a-z-]{1,32}|page)$/.test(group)?group:'other';console.log(JSON.stringify({event:'http',group:safe,method:req.method,status:res.statusCode,ms:Date.now()-started}));});
     try {
         checkOrigin(req); const url = new URL(req.url, 'http://localhost'); if (url.pathname.startsWith('/api/')) await api(req, res, url); else staticFile(req, res, url);
     } catch (e) { if (!e.status) console.error('[request]', e); respond(res, e.status || 500, { error: e.status ? e.message : 'An unexpected server error occurred.' }); }
 });
-server.on('close', () => { try { repairCenter.close(); } catch { } try { db.close(); } catch { } });
+server.on('close', () => { try { gatewayExtensions.close(); repairCenter.close(); } catch { } try { db.close(); } catch { } });
 if (process.env.REPAIRLYLABS_TEST !== '1') server.listen(PORT, '0.0.0.0', () => console.log(`RepairlyLabs ready at http://localhost:${PORT}`));

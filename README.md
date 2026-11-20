@@ -174,3 +174,6 @@ The code works locally and is deployable after configuration; a successful launc
 
 ## Latest upgrade
 See `REPORT-CLOSURE.md` for version 1.2.0 setup, parts payments, verified email recovery, finance reports, tests and remaining work.
+
+## Version 1.3 extension
+See [INTEGRATE-V1.3.md](INTEGRATE-V1.3.md) for the new operations modules, migration instructions, configuration, and known limits.

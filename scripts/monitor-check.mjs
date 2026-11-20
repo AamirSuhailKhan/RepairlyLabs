@@ -1,0 +1,3 @@
+// External uptime monitor: exits with status 1 on unhealthy or unreachable service.
+const origin=process.env.MONITOR_ORIGIN||process.argv[2]||'http://localhost:3001';
+try{const url=new URL('/api/ready',origin);if(!['https:','http:'].includes(url.protocol))throw Error('HTTP(S) origin required.');const r=await fetch(url,{signal:AbortSignal.timeout(5000)});const d=await r.json();if(!r.ok||d.ok!==true)throw Error('Readiness check failed.');console.log(JSON.stringify({ok:true,time:new Date().toISOString()}));}catch(e){console.error(JSON.stringify({ok:false,time:new Date().toISOString(),error:'Service not ready or unreachable'}));process.exitCode=1;}

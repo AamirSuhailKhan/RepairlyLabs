@@ -1,0 +1,55 @@
+/* ===== RepairlyLabs Operations Style ===== */
+
+.ops-head{
+  position:fixed;z-index:100;
+  top:18px;left:0;right:0;margin:0 auto;
+  width:min(940px, calc(100% - 36px));
+  height:58px;
+  border-radius:9999px;
+  background:rgba(8, 18, 30, 0.88);
+  border:1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  box-shadow:0 12px 35px rgba(0, 0, 0, 0.45);
+  padding:0 12px 0 16px;
+  box-sizing:border-box;
+}
+.ops-head .nav-shell{
+  height:100%;width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+.ops-head nav{
+  display:flex;align-items:center;gap:16px;
+}
+.ops-head nav a{
+  color:#b2c4ce;font-size:.88rem;font-weight:700;text-decoration:none;transition:color .2s;
+}
+.ops-head nav a:hover{color:#fff}
+.ops-head #lang{
+  min-height:34px;padding:6px 14px;border-radius:999px;font-weight:700;
+  background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.18);
+  cursor:pointer;
+}
+.ops-head #lang:hover{background:rgba(255,255,255,0.16)}
+.ops-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:20px;align-items:start}
+.ops-grid .panel{margin:0}
+.ops-actions{display:flex;flex-wrap:wrap;gap:8px;margin:15px 0}
+.ops-actions button{white-space:normal}
+.ops-data{overflow:auto;max-height:420px;font-size:.9rem;overflow-wrap:anywhere}
+.ops-photo{display:block;width:min(100%,350px);max-height:300px;object-fit:contain;border-radius:12px;border:1px solid rgba(255,255,255,0.1)}
+.ops-qr{width:min(100%,250px);background:#fff;border-radius:12px;padding:8px}
+.ops-head .logo{font-size:1.45rem}
+#message{
+  position:sticky;bottom:16px;max-width:940px;margin:10px auto;
+  padding:12px 20px;background:#0d2338;color:#e6f1f8;
+  border-radius:12px;min-height:20px;border:1px solid rgba(255,255,255,0.18);
+  box-shadow:0 12px 32px rgba(0,0,0,0.5);font-size:.9rem;
+}
+#message:empty{display:none}
+label input, label select{width:100%}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid #fb6948;outline-offset:3px}
+.ops-note{font-size:.85rem;color:var(--slate);opacity:.9}
+
+@media(max-width:620px){
+  .ops-head{top:12px;width:calc(100% - 24px);height:54px;padding:0 8px 0 12px}
+  .ops-head nav a{display:none}
+  .ops-head nav{display:flex;align-items:center}
+}
