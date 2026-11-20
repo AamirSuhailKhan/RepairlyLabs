@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { isIP } from 'node:net';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { resolve, extname, join, dirname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,7 +14,7 @@ if (existsSync(join(ROOT, '.env'))) for (const line of readFileSync(join(ROOT, '
     const match = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*)\s*$/);
     if (match && !Object.hasOwn(process.env, match[1])) process.env[match[1]] = match[2].replace(/^(['"])(.*)\1$/, '$2');
 }
-export const db = openDatabase();
+export const db = openDatabase(resolve(ROOT, process.env.DATA_DIR || 'data'));
 initAccess(db);
 const PORT = Number(process.env.PORT || 3001);
 const IS_PROD = process.env.NODE_ENV === 'production';
@@ -36,11 +37,12 @@ const str = (x, max = 200) => String(x ?? '').trim().slice(0, max);
 function required(x, name, max = 200) { const v = str(x, max); if (!v) err(400, `${name} is required.`); return v; }
 function phoneNorm(v) { const n = String(v ?? '').replace(/[\s()+-]/g, '').replace(/^91(?=\d{10}$)/, ''); if (!/^[6-9]\d{9}$/.test(n)) err(400, 'Enter a valid 10-digit Indian mobile number.'); return n; }
 function integer(v, min, max, name) { const n = Number(v); if (!Number.isSafeInteger(n) || n < min || n > max) err(400, `Invalid ${name}.`); return n; }
-async function bodyJson(req) { let all = ''; for await (const chunk of req) { all += chunk.toString(); if (all.length > 90000) err(413, 'Request too large.'); } try { const data = JSON.parse(all || '{}'); if (!data || typeof data !== 'object' || Array.isArray(data)) throw 0; return data; } catch { err(400, 'Invalid JSON.'); } }
-function clientIp(req) { const ip = req.socket.remoteAddress || 'unknown'; return process.env.TRUST_PROXY === '1' && ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(ip) ? String(req.headers['x-forwarded-for'] || ip).split(',')[0].trim() : ip; }
+async function bodyJson(req) { const chunks = []; let size = 0; for await (const chunk of req) { size += chunk.length; if (size > 90000) err(413, 'Request too large.'); chunks.push(chunk); } const all = Buffer.concat(chunks).toString('utf8'); try { const data = JSON.parse(all || '{}'); if (!data || typeof data !== 'object' || Array.isArray(data)) throw 0; return data; } catch { err(400, 'Invalid JSON.'); } }
+function trustedProxy(req) { return process.env.TRUST_PROXY === '1' && ['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress); }
+function clientIp(req) { const ip=req.socket.remoteAddress || 'unknown'; const candidate=String(req.headers['x-forwarded-for'] || '').split(',').at(-1).trim(); return trustedProxy(req) && isIP(candidate) ? candidate : ip; }
 const requests = new Map();
-function limit(req, group, max, windowMs) { const key = group + ':' + clientIp(req); const now = Date.now(); let item = requests.get(key); if (!item || now > item.reset) { item = { count: 0, reset: now + windowMs }; requests.set(key, item); } item.count++; if (item.count > max) err(429, 'Too many requests. Please try again later.'); if (requests.size > 6000) { for (const [k, v] of requests) if (v.reset < now) requests.delete(k); } }
-function checkOrigin(req) { if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return; const origin = req.headers.origin; if (origin) { let domain; try { domain = new URL(origin).host; } catch { err(403, 'Invalid origin.'); } if (domain !== req.headers.host) err(403, 'Cross-site requests are blocked.'); } }
+function limit(req, group, max, windowMs) { const key=group+':'+clientIp(req), now=Date.now(); let item=requests.get(key); if(!item || now>=item.reset) { if(requests.size>=6000) { for(const [k,v] of requests) if(v.reset<=now) requests.delete(k); if(requests.size>=6000 && !requests.has(key)) err(429,'Too many requests. Please try again later.'); } item={count:0,reset:now+windowMs}; requests.set(key,item); } if(++item.count>max) err(429,'Too many requests. Please try again later.'); }
+function checkOrigin(req) { if (!['POST','PUT','PATCH','DELETE'].includes(req.method)) return; const origin=req.headers.origin; if(!origin) return; const proto=(trustedProxy(req) && req.headers['x-forwarded-proto']==='https') || req.socket.encrypted ? 'https':'http'; let expected; try { expected=new URL(process.env.PUBLIC_ORIGIN || `${proto}://${req.headers.host}`).origin; } catch { err(403,'Invalid origin.'); } if(origin!==expected) err(403,'Cross-site requests are blocked.'); }
 function cookie(req) { const s = (req.headers.cookie || '').split(';').map(x => x.trim()).find(x => x.startsWith(cookieName + '=')); return s?.slice(cookieName.length + 1) || ''; }
 function session(req) { const token = cookie(req); if (!/^[\w-]{40,120}$/.test(token)) return null; const row = db.prepare('SELECT username,csrf,expires_at FROM sessions WHERE token_hash=?').get(hashToken(token)); if (!row || row.expires_at < Date.now() || profile(db,row.username).disabled) return null; return row; }
 function auth(req) { const s = session(req); if (!s) err(401, 'Please sign in.'); if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && req.headers['x-csrf-token'] !== s.csrf) err(403, 'Session verification failed. Refresh the page.'); return s; }
@@ -49,7 +51,7 @@ function consent(b) { if (![true, 'on', '1'].includes(b.consent)) err(400, 'Plea
 async function sendWebhook(kind, record) { const dest = process.env.NOTIFY_WEBHOOK_URL; if (!dest) return; try { const target = new URL(dest); if (target.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(target.hostname)) throw Error('Webhook must use HTTPS'); const body = JSON.stringify({ event: kind, record, timestamp: new Date().toISOString() }); const { createHmac } = await import('node:crypto'); const signature = createHmac('sha256', process.env.NOTIFY_WEBHOOK_SECRET || '').update(body).digest('hex'); const response = await fetch(dest, { method: 'POST', headers: { 'content-type': 'application/json', 'x-repairlylabs-signature': 'sha256=' + signature }, body, signal: AbortSignal.timeout(5000) }); if (!response.ok) throw Error('HTTP ' + response.status); } catch (e) { console.error('[notification] Optional webhook failed:', e.message); } }
 function siteConfig() { const settings = getSettings(db); const brands = db.prepare('SELECT brand,COUNT(*) AS models FROM devices GROUP BY brand ORDER BY brand COLLATE NOCASE').all(); const services = db.prepare('SELECT * FROM services WHERE active=1 ORDER BY sort_order,id').all(); return { settings, brands, services, categories: CATEGORIES }; }
 function publicProduct(r) { return { ...r, sample: !!r.sample, featured: !!r.featured, active: !!r.active }; }
-function getProducts(url, admin = false) { const q = str(url.searchParams.get('q'), 100), brand = str(url.searchParams.get('brand'), 80), cat = str(url.searchParams.get('category'), 80), model = str(url.searchParams.get('model'), 100); const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit')) || 24)); const offset = Math.max(0, Number(url.searchParams.get('offset')) || 0); let where = admin ? 'WHERE 1=1' : 'WHERE active=1'; const bind = []; if (q) { where += ' AND (name LIKE ? OR model LIKE ? OR brand LIKE ? OR sku LIKE ?)'; const like = '%' + q + '%'; bind.push(like, like, like, like); } if (brand) { where += ' AND brand=?'; bind.push(brand); } if (cat) { where += ' AND category=?'; bind.push(cat); } if (model) { where += ' AND model LIKE ?'; bind.push('%' + model + '%'); } const total = db.prepare('SELECT COUNT(*) n FROM products ' + where).get(...bind).n; const items = db.prepare('SELECT * FROM products ' + where + ' ORDER BY featured DESC,id DESC LIMIT ? OFFSET ?').all(...bind, limit, offset).map(publicProduct); return { items, total, limit, offset }; }
+function getProducts(url, admin = false) { const q = str(url.searchParams.get('q'), 100), brand = str(url.searchParams.get('brand'), 80), cat = str(url.searchParams.get('category'), 80), model = str(url.searchParams.get('model'), 100); const limit = Math.min(100, Math.max(1, Math.trunc(Number(url.searchParams.get('limit')) || 24))); const offset = Math.min(100000000, Math.max(0, Math.trunc(Number(url.searchParams.get('offset')) || 0))); let where = admin ? 'WHERE 1=1' : 'WHERE active=1'; const bind = []; if (q) { where += ' AND (name LIKE ? OR model LIKE ? OR brand LIKE ? OR sku LIKE ?)'; const like = '%' + q + '%'; bind.push(like, like, like, like); } if (brand) { where += ' AND brand=?'; bind.push(brand); } if (cat) { where += ' AND category=?'; bind.push(cat); } if (model) { where += ' AND model LIKE ?'; bind.push('%' + model + '%'); } const total = db.prepare('SELECT COUNT(*) n FROM products ' + where).get(...bind).n; const items = db.prepare('SELECT * FROM products ' + where + ' ORDER BY featured DESC,id DESC LIMIT ? OFFSET ?').all(...bind, limit, offset).map(publicProduct); return { items, total, limit, offset }; }
 function track(ref, phone) { const p = phoneNorm(phone), r = str(ref, 50).toUpperCase(); if (!/^(RLM|RLP|KM|KP)-\d{6}-[0-9A-F]{8}$/.test(r)) err(400, 'Please enter a valid reference ID.'); if (r.startsWith('RLM-') || r.startsWith('KM-')) { const b = db.prepare('SELECT ref,name,brand,model,issue,method,date,locality,status,quote,created_at,updated_at FROM bookings WHERE ref=? AND phone=?').get(r, p); return b ? { type: 'repair', record: b } : null; } const o = db.prepare('SELECT ref,name,mode,locality,status,subtotal,created_at,updated_at FROM orders WHERE ref=? AND phone=?').get(r, p); if (!o) return null; return { type: 'order', record: o, items: db.prepare('SELECT name,quantity,unit_price FROM order_items WHERE order_id=(SELECT id FROM orders WHERE ref=?)').all(r) }; }
 const states = ['pending', 'confirmed', 'in_progress', 'ready', 'completed', 'cancelled'];
 const orderTransitions = { pending: ['confirmed', 'cancelled'], confirmed: ['in_progress', 'ready', 'cancelled'], in_progress: ['ready', 'cancelled'], ready: ['completed', 'cancelled'], completed: [], cancelled: [] };
@@ -98,7 +100,7 @@ async function api(req, res, url) {
         if (mode === 'Request delivery' && getSettings(db).delivery_enabled !== '1') err(400, 'Delivery requests are currently disabled.');
         if (mode === 'Request delivery' && !address) err(400, 'Address is needed for delivery requests.');
         const verified = [], seen = new Set(); let total = 0;
-        for (const item of b.items) { const id = integer(item.id, 1, 100000000, 'product'), qty = integer(item.quantity, 1, 20, 'quantity'); if (seen.has(id)) err(400, 'Duplicate product entry.'); seen.add(id); const p = db.prepare('SELECT * FROM products WHERE id=? AND active=1').get(id); if (!p) err(400, 'Some parts are no longer listed.'); if (qty > p.stock) err(400, `Insufficient listed stock for ${p.name}.`); total += p.price * qty; verified.push({ p, qty }); }
+        for (const item of b.items) { if (!item || typeof item !== 'object' || Array.isArray(item)) err(400,'Invalid cart item.'); const id = integer(item.id, 1, 100000000, 'product'), qty = integer(item.quantity, 1, 20, 'quantity'); if (seen.has(id)) err(400, 'Duplicate product entry.'); seen.add(id); const p = db.prepare('SELECT * FROM products WHERE id=? AND active=1').get(id); if (!p) err(400, 'Some parts are no longer listed.'); if (qty > p.stock) err(400, `Insufficient listed stock for ${p.name}.`); total += p.price * qty; verified.push({ p, qty }); }
         const ref = allocateRepairlyRef('RLP'); db.exec('BEGIN IMMEDIATE'); try {
             const order = db.prepare('INSERT INTO orders(ref,name,phone,locality,address,mode,notes,subtotal,consent_at) VALUES(?,?,?,?,?,?,?,?,?)').run(ref, name, phone, locality, address, mode, notes, total, consentAt);
             const add = db.prepare('INSERT INTO order_items(order_id,product_id,sku,name,unit_price,quantity,sample) VALUES(?,?,?,?,?,?,?)'); for (const { p, qty } of verified) add.run(order.lastInsertRowid, p.id, p.sku, p.name, p.price, qty, p.sample);
@@ -116,7 +118,8 @@ async function api(req, res, url) {
     if (pathname === '/api/track' && method === 'GET') {
         limit(req, 'track', 30, 3600000); const result = track(url.searchParams.get('ref'), url.searchParams.get('phone')); if (!result) err(404, 'No request found with that reference and phone number.'); return ok(res, result);
     }
-    if (pathname === '/api/admin/access-info' && method === 'GET') return ok(res,{version:2});
+    if (pathname === '/api/admin/access-info' && method === 'GET') return ok(res,{version:3});
+    if (pathname === '/api/admin/recovery-check' && method === 'POST') { limit(req,'recovery-check',8,900000); const b=await bodyJson(req); if(typeof b.token!=='string'||! /^[A-Za-z0-9_-]{43}$/.test(b.token)) err(403,'Recovery link invalid or expired.'); const row=db.prepare('SELECT expires_at FROM admin_recovery WHERE token_hash=?').get(hashToken(b.token)); if(!row||row.expires_at<=Date.now()) err(403,'Recovery link invalid or expired.'); return ok(res,{valid:true}); }
     if (pathname === '/api/admin/recover' && method === 'POST') { limit(req,'recover',8,900000); const b=await bodyJson(req); return ok(res,recoverOwner(db,b)); }
     if (pathname === '/api/admin/login' && method === 'POST') {
         limit(req, 'login', 8, 900000); const b = await bodyJson(req), login = str(b.username, 120).toLowerCase(), pass = String(b.password || '');
@@ -206,16 +209,16 @@ async function api(req, res, url) {
         }
         if (pathname === '/api/admin/models/bulk' && method === 'POST') {
             const b = await bodyJson(req); if (!Array.isArray(b.models) || b.models.length > 1000) err(400, 'Provide a models array with at most 1,000 rows.');
-            let added = 0; const ins = db.prepare('INSERT OR IGNORE INTO devices(brand,model) VALUES(?,?)'); for (const v of b.models) { const brand = required(v.brand, 'Brand', 80), model = required(v.model, 'Model', 120); added += ins.run(brand, model).changes; }
+            let added = 0; const ins = db.prepare('INSERT OR IGNORE INTO devices(brand,model) VALUES(?,?)'); for (const v of b.models) { if (!v || typeof v !== 'object' || Array.isArray(v)) err(400,'Invalid model row.'); const brand = required(v.brand, 'Brand', 80), model = required(v.model, 'Model', 120); added += ins.run(brand, model).changes; }
             audit(s.username, 'models_import', String(added)); return ok(res, { added });
         }
         if (pathname === '/api/admin/password' && method === 'PATCH') {
             const b = await bodyJson(req), a = db.prepare('SELECT password_hash FROM admins WHERE username=?').get(s.username); if (!verifyPassword(String(b.current || ''), a.password_hash)) err(403, 'Current password is incorrect.');
-            if (typeof b.next !== 'string' || b.next.length < 12 || b.next.length > 150) err(400, 'New password must contain at least 12 characters.');
+            if (typeof b.next !== 'string' || b.next.length < 8 || b.next.length > 150) err(400, 'New password must contain at least 8 characters.');
             const { passwordHash } = await import('./data.mjs'); db.prepare('UPDATE admins SET password_hash=? WHERE username=?').run(passwordHash(b.next), s.username); db.prepare('DELETE FROM sessions WHERE username=? AND token_hash<>?').run(s.username, hashToken(cookie(req))); audit(s.username, 'password_change'); return ok(res, { ok: true });
         }
         if (pathname === '/api/admin/export' && method === 'GET') {
-            const type = url.searchParams.get('type'); const queries = { bookings: 'SELECT * FROM bookings ORDER BY id DESC', orders: 'SELECT * FROM orders ORDER BY id DESC', contacts: 'SELECT * FROM contacts ORDER BY id DESC', products: 'SELECT * FROM products ORDER BY id DESC' }; if (!queries[type]) err(400, 'Unknown export.');
+            const type = url.searchParams.get('type'); const queries = { bookings: 'SELECT * FROM bookings ORDER BY id DESC', orders: 'SELECT * FROM orders ORDER BY id DESC', contacts: 'SELECT * FROM contacts ORDER BY id DESC', products: 'SELECT * FROM products ORDER BY id DESC' }; if (!Object.hasOwn(queries,type)) err(400, 'Unknown export.');
             const rows = db.prepare(queries[type]).all(); let fields = rows.length ? Object.keys(rows[0]) : [];
             if (!fields.length) fields = db.prepare(`PRAGMA table_info(${type})`).all().map(c => c.name);
             const cell = v => { let x = String(v ?? ''); if (/^[=+\-@\t\r]/.test(x)) x = "'" + x; return '"' + x.replaceAll('"', '""') + '"'; };
@@ -231,16 +234,16 @@ function staticFile(req, res, url) {
     if (p.includes('\0') || p.includes('\\') || p.split('/').includes('..')) err(400, 'Invalid path.');
     const target = resolve(WEBROOT, '.' + p);
     if (!target.startsWith(WEBROOT + sep) && target !== WEBROOT) err(403, 'Forbidden.');
-    let file = target;
+    let file = ['/repair-center','/repair-center/'].includes(p) ? join(WEBROOT,'repair-center','index.html') : target;
     if (!existsSync(file) || !statSync(file).isFile()) { if (extname(p)) err(404, 'Not found.'); file = join(WEBROOT, 'index.html'); }
     const ext = extname(file); const data = readFileSync(file);
-    const pageHeaders = p === '/repair-center/index.html' ? {
+    const pageHeaders = file === join(WEBROOT,'repair-center','index.html') ? {
         ...headers,
-        'Content-Security-Policy': "default-src 'self'; script-src 'self' https://checkout.razorpay.com https://*.razorpay.com; style-src 'self' 'unsafe-inline' https://*.razorpay.com; img-src 'self' data: https://*.razorpay.com; connect-src 'self' https://*.razorpay.com; frame-src https://*.razorpay.com https://*.razorpay.co.in; font-src 'self' data: https://*.razorpay.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self' https://*.razorpay.com;",
+        'Content-Security-Policy': "default-src 'self'; script-src 'self' https://checkout.razorpay.com https://*.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.razorpay.com; img-src 'self' data: https://*.razorpay.com; connect-src 'self' https://*.razorpay.com; frame-src https://*.razorpay.com https://*.razorpay.co.in; font-src 'self' data: https://fonts.gstatic.com https://*.razorpay.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self' https://*.razorpay.com;",
         'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
         'Referrer-Policy': 'no-referrer'
     } : headers;
-    res.writeHead(200, { ...pageHeaders, 'Content-Type': mime[ext] || 'application/octet-stream', 'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=3600' }); if (req.method === 'HEAD') res.end(); else res.end(data);
+    res.writeHead(200, { ...pageHeaders, 'Content-Type': mime[ext] || 'application/octet-stream', 'Cache-Control': ['.html','.js','.css'].includes(ext) ? 'no-cache' : 'public, max-age=3600' }); if (req.method === 'HEAD') res.end(); else res.end(data);
 }
 export const server = createServer(async (req, res) => {
     try {
