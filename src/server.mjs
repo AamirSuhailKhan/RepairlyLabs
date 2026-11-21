@@ -13,6 +13,7 @@ import { createEmailRecovery } from './email-recovery.mjs';
 import { createGatewayExtensions } from './gateway-extensions.mjs';
 import { createExtendedOps } from './extended-ops.mjs';
 import { createPartsPayments } from './parts-payment.mjs';
+import { createPartInquiries } from './part-inquiries.mjs';
 import { createReferenceAllocator } from './repair-reference.mjs';
 
 import { ROOT, DATA_DIR } from './config.mjs';
@@ -48,7 +49,7 @@ function rememberKey(key,fingerprint,ref){if(key)db.prepare('INSERT INTO request
 function bookingReplay(b,old){const token=createHash('sha256').update('repairly-booking:'+b.request_key+':'+old.ref).digest('base64url');const j=db.prepare('SELECT token_hash FROM rl_jobs WHERE ref=?').get(old.ref);if(!j)err(409,'The earlier request is unavailable. Contact staff.');return {ref:old.ref,status:'pending',...(j.token_hash===digest(token)?{repair_access:token}:{}),message:'Your earlier request was already saved.'};}
 function phoneNorm(v) { const n = String(v ?? '').replace(/[\s()+-]/g, '').replace(/^91(?=\d{10}$)/, ''); if (!/^[6-9]\d{9}$/.test(n)) err(400, 'Enter a valid 10-digit Indian mobile number.'); return n; }
 function integer(v, min, max, name) { const n = Number(v); if (!Number.isSafeInteger(n) || n < min || n > max) err(400, `Invalid ${name}.`); return n; }
-async function bodyJson(req) { const chunks = []; let size = 0; for await (const chunk of req) { size += chunk.length; if (size > (/^\/api\/extended\/job\/[A-Z0-9-]+\/photos$/.test(req.url?.split('?')[0]||'')?750000:req.url?.split('?')[0]==='/api/repair-center/admin/qr-settings'?750000:/\/api\/repair-center\/job\/[A-Z0-9-]+\/qr-claim$/.test(req.url?.split('?')[0]||'')?750000:/^\/api\/parts-payment\/order\/[A-Z0-9-]+\/claim$/.test(req.url?.split('?')[0]||'')?750000:90000)) err(413, 'Request too large.'); chunks.push(chunk); } const all = Buffer.concat(chunks).toString('utf8'); try { const data = JSON.parse(all || '{}'); if (!data || typeof data !== 'object' || Array.isArray(data)) throw 0; return data; } catch { err(400, 'Invalid JSON.'); } }
+async function bodyJson(req) { const chunks = []; let size = 0; for await (const chunk of req) { size += chunk.length; if (size > (req.method==='POST' && req.url?.split('?')[0]==='/api/part-inquiries'?750000:/^\/api\/extended\/job\/[A-Z0-9-]+\/photos$/.test(req.url?.split('?')[0]||'')?750000:req.url?.split('?')[0]==='/api/repair-center/admin/qr-settings'?750000:/\/api\/repair-center\/job\/[A-Z0-9-]+\/qr-claim$/.test(req.url?.split('?')[0]||'')?750000:/^\/api\/parts-payment\/order\/[A-Z0-9-]+\/claim$/.test(req.url?.split('?')[0]||'')?750000:90000)) err(413, 'Request too large.'); chunks.push(chunk); } const all = Buffer.concat(chunks).toString('utf8'); try { const data = JSON.parse(all || '{}'); if (!data || typeof data !== 'object' || Array.isArray(data)) throw 0; return data; } catch { err(400, 'Invalid JSON.'); } }
 function trustedProxy(req) { return Boolean(process.env.VERCEL || (process.env.TRUST_PROXY === '1' && ['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress))); }
 function clientIp(req) { const ip=req.socket.remoteAddress || 'unknown'; const candidate=String(req.headers['x-forwarded-for'] || '').split(',').at(-1).trim(); return trustedProxy(req) && isIP(candidate) ? candidate : ip; }
 const requests = new Map();
@@ -80,11 +81,13 @@ export const repairCenter = createRepairCenter({
     phoneSession: (req,ref)=>extended.phoneSession(req,ref),
     worker: process.env.REPAIRLYLABS_TEST !== '1' && process.env.KASHIFIX_TEST !== '1'
 });
+const partInquiries=createPartInquiries({db,auth,ok,bodyJson,limit,notify:sendWebhook});
 const emailRecovery=createEmailRecovery({db});
 const partsPayments=createPartsPayments({db,auth,ok,bodyJson,limit,phoneSession:(req,ref)=>extended.phoneSession(req,ref)});
 const extended=createExtendedOps({db,auth,ok,bodyJson,limit,verifyPassword,findAccount});
 const gatewayExtensions=createGatewayExtensions({db,auth,ok,bodyJson,limit,access:extended.access,worker:process.env.REPAIRLYLABS_TEST!=='1'});
 async function api(req, res, url) {
+    if(url.pathname.startsWith('/api/part-inquiries'))return partInquiries.handle(req,res,url);
     if(url.pathname.startsWith('/api/gateway-extension/'))return gatewayExtensions.handle(req,res,url);
     if(url.pathname.startsWith('/api/extended/'))return extended.handle(req,res,url);
     if(url.pathname.startsWith('/api/parts-payment/'))return partsPayments.handle(req,res,url);
@@ -283,14 +286,14 @@ function staticFile(req, res, url) {
     if (p.includes('\0') || p.includes('\\') || p.split('/').includes('..')) err(400, 'Invalid path.');
     const canonical=seoOrigin();
     if(p==='/sitemap.xml'){if(!canonical)err(404,'Set PUBLIC_ORIGIN to your HTTPS domain to publish the sitemap.');res.writeHead(200,{...headers,'Content-Type':'application/xml; charset=utf-8','Cache-Control':'no-cache'});return res.end(req.method==='HEAD'?undefined:sitemap(db,canonical));}
-    if(p==='/robots.txt'){const robots='User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nDisallow: /repair-center\nDisallow: /parts-payment\nDisallow: /account-recovery\nDisallow: /operations\nDisallow: /track\n'+(canonical?'Sitemap: '+canonical+'/sitemap.xml\n':'');res.writeHead(200,{...headers,'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-cache'});return res.end(req.method==='HEAD'?undefined:robots);}
+    if(p==='/robots.txt'){const robots='User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nDisallow: /repair-center\nDisallow: /parts-payment\nDisallow: /part-request?admin\nDisallow: /account-recovery\nDisallow: /operations\nDisallow: /track\n'+(canonical?'Sitemap: '+canonical+'/sitemap.xml\n':'');res.writeHead(200,{...headers,'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-cache'});return res.end(req.method==='HEAD'?undefined:robots);}
     if(/^\/(service|part)\//.test(p)){const content=catalogPage(db,p,getSettings(db),canonical);if(!content)err(404,'Listing not found.');res.writeHead(200,{...headers,'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache'});return res.end(req.method==='HEAD'?undefined:content);}
     const target = resolve(WEBROOT, '.' + p);
     if (!target.startsWith(WEBROOT + sep) && target !== WEBROOT) err(403, 'Forbidden.');
-    let file = ['/repair-center','/repair-center/'].includes(p) ? join(WEBROOT,'repair-center','index.html') : ['/parts-payment','/parts-payment/'].includes(p)?join(WEBROOT,'parts-payment','index.html'):['/account-recovery','/account-recovery/'].includes(p)?join(WEBROOT,'account-recovery','index.html'):['/operations','/operations/'].includes(p)?join(WEBROOT,'operations','index.html'):target;
+    let file = ['/part-request','/part-request/'].includes(p) ? join(WEBROOT,'part-request','index.html') : ['/repair-center','/repair-center/'].includes(p) ? join(WEBROOT,'repair-center','index.html') : ['/parts-payment','/parts-payment/'].includes(p)?join(WEBROOT,'parts-payment','index.html'):['/account-recovery','/account-recovery/'].includes(p)?join(WEBROOT,'account-recovery','index.html'):['/operations','/operations/'].includes(p)?join(WEBROOT,'operations','index.html'):target;
     if (!existsSync(file) || !statSync(file).isFile()) { if (extname(p)) err(404, 'Not found.'); file = join(WEBROOT, 'index.html'); }
     const ext = extname(file); let data = readFileSync(file);if(file===join(WEBROOT,'index.html')&&canonical&&['/','/repairs','/parts','/about','/contact','/privacy'].includes(p))data=Buffer.from(data.toString().replace('</head>','<link rel="canonical" href="'+canonical+p+'">\n</head>'));
-    const privatePage=/^\/(admin|track|repair-center|parts-payment|account-recovery|operations)(?:\/|$)/.test(p);
+    const privatePage=/^\/(admin|track|repair-center|parts-payment|account-recovery|operations)(?:\/|$)/.test(p) || (p.startsWith('/part-request') && url.searchParams.has('admin'));
     const pageHeaders = file === join(WEBROOT,'repair-center','index.html') ? {
         ...headers,
         'Content-Security-Policy': "default-src 'self'; script-src 'self' https://checkout.razorpay.com https://*.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.razorpay.com; img-src 'self' data: https://*.razorpay.com; connect-src 'self' https://*.razorpay.com; frame-src https://*.razorpay.com https://*.razorpay.co.in; font-src 'self' data: https://fonts.gstatic.com https://*.razorpay.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self' https://*.razorpay.com;",

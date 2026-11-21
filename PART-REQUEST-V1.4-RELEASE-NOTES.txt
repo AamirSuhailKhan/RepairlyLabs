@@ -1,0 +1,10 @@
+RepairlyLabs V1.4 — Parts Enquiry Upgrade
+- New customer request form, free-text phone model and optional part photo.
+- New unique reference, private enquiry link, customer quote acceptance.
+- Owner/manager inbox, staff response, unread counters, >10-minute waiting count.
+- Dedicated price, availability and delivery fee quotation workflow.
+- Existing repair, parts cart and payment systems are preserved.
+- No real-money payment is collected when accepting an enquiry.
+- Response in minutes depends on team staffing and external notification setup.
+- Browser-based screenshot verification blocked by administrator policy.
+See PART-REQUEST-V1.4-GUIDE.md for integration and API details.
