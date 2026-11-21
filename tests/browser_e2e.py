@@ -14,7 +14,7 @@ with tempfile.TemporaryDirectory(prefix='repairly-e2e-') as data:
         line=proc.stdout.readline().strip();assert line.startswith('PORT='),line
         base='http://127.0.0.1:'+line.split('=')[1]
         with sync_playwright() as pw:
-            executable=os.environ.get('CHROMIUM_PATH') or shutil.which('chromium') or None
+            executable=os.environ.get('CHROMIUM_PATH') or (r'C:\Program Files\Google\Chrome\Application\chrome.exe' if os.path.exists(r'C:\Program Files\Google\Chrome\Application\chrome.exe') else shutil.which('chromium')) or None
             browser=pw.chromium.launch(headless=True,**({'executable_path':executable} if executable else {}))
             for width,height in [(1440,900),(390,844)]:
                 context=browser.new_context(viewport={'width':width,'height':height});page=context.new_page();errors=[];page.on('pageerror',lambda e:errors.append(str(e)))

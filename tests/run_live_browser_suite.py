@@ -30,7 +30,15 @@ with sync_playwright() as pw:
     nav = page.locator("#navbar")
     nav_radius = nav.evaluate("el => window.getComputedStyle(el).borderRadius")
     nav_pos = nav.evaluate("el => window.getComputedStyle(el).position")
+    nav_text = nav.inner_text()
     print(f"   Navbar style: position={nav_pos}, borderRadius={nav_radius}")
+    print(f"   Navbar text: {repr(nav_text)}")
+    assert "हिन्दी" not in nav_text, "Hindi toggle found in desktop navbar!"
+    
+    # Capture desktop navbar close-up
+    nav_clip_path = str(artifact_dir / "live_navbar_desktop.png")
+    nav.screenshot(path=nav_clip_path)
+
     storefront_path = str(artifact_dir / "live_storefront_desktop.png")
     page.screenshot(path=storefront_path, full_page=False)
     results["storefront_desktop"] = {
@@ -39,17 +47,42 @@ with sync_playwright() as pw:
         "screenshot": storefront_path
     }
 
-    # --- Storefront Mobile ---
+    # --- Storefront Mobile (390x844) ---
     print("\n2. Testing Storefront Mobile (390x844)...")
     m_context = browser.new_context(viewport={"width": 390, "height": 844})
     m_page = m_context.new_page()
     m_page.goto(f"{base_url}/", wait_until="networkidle")
+    
+    m_nav = m_page.locator("#navbar")
+    assert "हिन्दी" not in m_nav.inner_text(), "Hindi toggle found in mobile navbar!"
+
     storefront_mobile_path = str(artifact_dir / "live_storefront_mobile.png")
     m_page.screenshot(path=storefront_mobile_path, full_page=False)
+
+    # Test Mobile Menu Drawer
+    print("   Testing Mobile Menu Toggle...")
+    m_page.locator(".mobile-trigger").click()
+    m_page.wait_for_selector("#mobile-nav:not(.hide)")
+    mobile_menu_path = str(artifact_dir / "live_storefront_mobile_menu.png")
+    m_page.screenshot(path=mobile_menu_path, full_page=False)
+
+    # Test Mobile Repairs Page
+    print("   Testing Mobile Repairs Page...")
+    m_page.goto(f"{base_url}/repairs", wait_until="networkidle")
+    repairs_mobile_path = str(artifact_dir / "live_repairs_mobile.png")
+    m_page.screenshot(path=repairs_mobile_path, full_page=False)
+
+    # Test Mobile Parts Page
+    print("   Testing Mobile Parts Page...")
+    m_page.goto(f"{base_url}/parts", wait_until="networkidle")
+    parts_mobile_path = str(artifact_dir / "live_parts_mobile.png")
+    m_page.screenshot(path=parts_mobile_path, full_page=False)
+
     m_context.close()
     results["storefront_mobile"] = {
         "status": "PASS",
-        "screenshot": storefront_mobile_path
+        "screenshot": storefront_mobile_path,
+        "menu_screenshot": mobile_menu_path
     }
 
     # --- Admin Login ---
@@ -80,13 +113,11 @@ with sync_playwright() as pw:
     # --- Repair Desk Job Details (POCO M7 Pro) ---
     print("\n5. Testing Repair Desk Job Details for POCO M7 Pro...")
     poco_btn = page.locator("button[data-ref='RLM-261119-E7C48CED']")
-    print(f"   POCO button count: {poco_btn.count()}")
     if poco_btn.count() > 0:
         poco_btn.click()
     else:
         page.locator("button[data-ref]").first.click()
     
-    # Wait for the job detail view to mount (.intake-fields only exists in job detail view)
     page.locator(".intake-fields").wait_for(timeout=10000)
     job_h1 = page.locator("h1").first.inner_text()
     print(f"   Job Details Heading: {job_h1}")
