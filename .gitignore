@@ -6,3 +6,4 @@ data/*
 *.log
 test-results/videos/
 test-results/traces/
+navbar-fix-backup-*/
