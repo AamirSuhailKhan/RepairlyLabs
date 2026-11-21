@@ -1,0 +1,25 @@
+RepairlyLabs-main (4).zip review and V1.3.1 safety update
+Date: 2026-11-21
+
+Source: uploaded RepairlyLabs-main (4).zip (90 entries).
+Baseline: V1.3 extended operations modules present.
+
+Executed:
+- npm test: 18 of 18 Node tests passed (after changes).
+- npm run audit: 23 of 23 functional checks passed.
+- python tests/browser_e2e.py: BLOCKED (Chromium ERR_BLOCKED_BY_ADMINISTRATOR on localhost URL; no page workflows executed).
+
+Reproduced serious issue before fix:
+- Vercel handler imported src/server.mjs and initialized writable SQLite at /tmp/data on Vercel; temporary, non-durable data cannot safely hold customer, account or payment records.
+
+Applied fixes:
+- api/index.mjs fail-closed HTTP 503 PERSISTENT_HOST_REQUIRED on Vercel, before application/database module import. This means Vercel serverless is NOT a supported full-stack deployment.
+- tests/vercel_serverless.test.mjs ensures Vercel deploy does not accept API requests in any mode.
+- tests/run_live_browser_suite.py now runs safe isolated tests without hardcoded owner password or machine-specific paths.
+- HOSTING-SAFETY-READ-ME.md documents hosting requirements and limitations.
+
+Production not verified:
+- Real Razorpay / Twilio / WhatsApp providers, real merchant QR, owner account data, deployment hosting, actual Windows browser E2E, offsite backup operations.
+- This upload contains data/.gitkeep only, no real customer DB or .env.
+
+Do not claim commercial production readiness solely on green tests.
