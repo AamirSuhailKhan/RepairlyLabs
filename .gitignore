@@ -4,3 +4,5 @@ data/*
 !data/.gitkeep
 .DS_Store
 *.log
+test-results/videos/
+test-results/traces/
