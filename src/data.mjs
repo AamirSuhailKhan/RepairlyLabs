@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, existsSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomBytes, scryptSync, timingSafeEqual, createHash } from 'node:crypto';
 
@@ -66,9 +66,16 @@ const PRODUCT_SEED = [
  ['Display Assembly','Infinix','Infinix Hot 50','Display & Touch','Compatible option',1899,7,'display'],
  ['Back Panel Replacement','Lava','Lava Agni 2','Back Panel','Compatible option',899,5,'panel']
 ];
-export function openDatabase(dir = process.env.DATA_DIR || join(process.cwd(),'data')) {
+export function openDatabase(dir = process.env.DATA_DIR || (process.env.VERCEL ? '/tmp/data' : join(process.cwd(),'data'))) {
  mkdirSync(dir,{recursive:true});
- const db = new DatabaseSync(join(dir,'repairlylabs.sqlite'));
+ const dbPath = join(dir,'repairlylabs.sqlite');
+ if (!existsSync(dbPath) && process.env.VERCEL) {
+  const seedFile = join(process.cwd(),'data','repairlylabs.sqlite');
+  if (existsSync(seedFile)) {
+   try { copyFileSync(seedFile, dbPath); } catch {}
+  }
+ }
+ const db = new DatabaseSync(dbPath);
  db.exec(`PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;
  CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS devices(id INTEGER PRIMARY KEY, brand TEXT NOT NULL, model TEXT NOT NULL, UNIQUE(brand,model));

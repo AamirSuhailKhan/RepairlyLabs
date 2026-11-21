@@ -1,0 +1,32 @@
+{
+  "version": 2,
+  "outputDirectory": "public",
+  "functions": {
+    "api/index.mjs": {
+      "runtime": "nodejs22.x",
+      "includeFiles": "data/**"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.mjs" },
+    { "source": "/sitemap.xml", "destination": "/api/index.mjs" },
+    { "source": "/robots.txt", "destination": "/api/index.mjs" },
+    { "source": "/service/(.*)", "destination": "/api/index.mjs" },
+    { "source": "/part/(.*)", "destination": "/api/index.mjs" },
+    { "source": "/repair-center", "destination": "/repair-center/index.html" },
+    { "source": "/repair-center/(.*)", "destination": "/repair-center/index.html" },
+    { "source": "/parts-payment", "destination": "/parts-payment/index.html" },
+    { "source": "/parts-payment/(.*)", "destination": "/parts-payment/index.html" },
+    { "source": "/operations", "destination": "/operations/index.html" },
+    { "source": "/operations/(.*)", "destination": "/operations/index.html" },
+    { "source": "/account-recovery", "destination": "/account-recovery/index.html" },
+    { "source": "/account-recovery/(.*)", "destination": "/account-recovery/index.html" },
+    { "source": "/admin", "destination": "/index.html" },
+    { "source": "/track", "destination": "/index.html" },
+    { "source": "/repairs", "destination": "/index.html" },
+    { "source": "/parts", "destination": "/index.html" },
+    { "source": "/about", "destination": "/index.html" },
+    { "source": "/contact", "destination": "/index.html" },
+    { "source": "/privacy", "destination": "/index.html" }
+  ]
+}

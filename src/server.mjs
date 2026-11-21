@@ -49,7 +49,7 @@ function bookingReplay(b,old){const token=createHash('sha256').update('repairly-
 function phoneNorm(v) { const n = String(v ?? '').replace(/[\s()+-]/g, '').replace(/^91(?=\d{10}$)/, ''); if (!/^[6-9]\d{9}$/.test(n)) err(400, 'Enter a valid 10-digit Indian mobile number.'); return n; }
 function integer(v, min, max, name) { const n = Number(v); if (!Number.isSafeInteger(n) || n < min || n > max) err(400, `Invalid ${name}.`); return n; }
 async function bodyJson(req) { const chunks = []; let size = 0; for await (const chunk of req) { size += chunk.length; if (size > (/^\/api\/extended\/job\/[A-Z0-9-]+\/photos$/.test(req.url?.split('?')[0]||'')?750000:req.url?.split('?')[0]==='/api/repair-center/admin/qr-settings'?750000:/\/api\/repair-center\/job\/[A-Z0-9-]+\/qr-claim$/.test(req.url?.split('?')[0]||'')?750000:/^\/api\/parts-payment\/order\/[A-Z0-9-]+\/claim$/.test(req.url?.split('?')[0]||'')?750000:90000)) err(413, 'Request too large.'); chunks.push(chunk); } const all = Buffer.concat(chunks).toString('utf8'); try { const data = JSON.parse(all || '{}'); if (!data || typeof data !== 'object' || Array.isArray(data)) throw 0; return data; } catch { err(400, 'Invalid JSON.'); } }
-function trustedProxy(req) { return process.env.TRUST_PROXY === '1' && ['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress); }
+function trustedProxy(req) { return Boolean(process.env.VERCEL || (process.env.TRUST_PROXY === '1' && ['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress))); }
 function clientIp(req) { const ip=req.socket.remoteAddress || 'unknown'; const candidate=String(req.headers['x-forwarded-for'] || '').split(',').at(-1).trim(); return trustedProxy(req) && isIP(candidate) ? candidate : ip; }
 const requests = new Map();
 function limit(req, group, max, windowMs) { const key=group+':'+clientIp(req), now=Date.now(); let item=requests.get(key); if(!item || now>=item.reset) { if(requests.size>=6000) { for(const [k,v] of requests) if(v.reset<=now) requests.delete(k); if(requests.size>=6000 && !requests.has(key)) err(429,'Too many requests. Please try again later.'); } item={count:0,reset:now+windowMs}; requests.set(key,item); } if(++item.count>max) err(429,'Too many requests. Please try again later.'); }
@@ -299,11 +299,12 @@ function staticFile(req, res, url) {
     } : p.startsWith('/operations') ? {...headers,'Content-Security-Policy':headers['Content-Security-Policy'].replace("img-src 'self' data:","img-src 'self' data: https://*.razorpay.com https://*.razorpay.co.in")} : headers;
     res.writeHead(200, { ...pageHeaders, ...(privatePage?{'X-Robots-Tag':'noindex, nofollow','Referrer-Policy':'no-referrer'}:{}), 'Content-Type': mime[ext] || 'application/octet-stream', 'Cache-Control': ['.html','.js','.css'].includes(ext) ? 'no-cache' : 'public, max-age=3600' }); if (req.method === 'HEAD') res.end(); else res.end(data);
 }
-export const server = createServer(async (req, res) => {
+export async function handleRequest(req, res) {
     const started=Date.now();if(process.env.RL_REQUEST_LOG==='1')res.once('finish',()=>{const raw=String(req.url||'').split('?')[0];const group=raw.startsWith('/api/')?'api/'+(raw.split('/')[2]||'other'):'page';const safe=/^(api\/[a-z-]{1,32}|page)$/.test(group)?group:'other';console.log(JSON.stringify({event:'http',group:safe,method:req.method,status:res.statusCode,ms:Date.now()-started}));});
     try {
         checkOrigin(req); const url = new URL(req.url, 'http://localhost'); if (url.pathname.startsWith('/api/')) await api(req, res, url); else staticFile(req, res, url);
     } catch (e) { if (!e.status) console.error('[request]', e); respond(res, e.status || 500, { error: e.status ? e.message : 'An unexpected server error occurred.' }); }
-});
+}
+export const server = createServer(handleRequest);
 server.on('close', () => { try { gatewayExtensions.close(); repairCenter.close(); } catch { } try { db.close(); } catch { } });
-if (process.env.REPAIRLYLABS_TEST !== '1') server.listen(PORT, '0.0.0.0', () => console.log(`RepairlyLabs ready at http://localhost:${PORT}`));
+if (process.env.REPAIRLYLABS_TEST !== '1' && !process.env.VERCEL) server.listen(PORT, '0.0.0.0', () => console.log(`RepairlyLabs ready at http://localhost:${PORT}`));

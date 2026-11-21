@@ -1,0 +1,9 @@
+tests/
+scripts/
+deploy/
+.git/
+.env.example
+.env.addon.example
+*.log
+*.txt
+*.vbs
