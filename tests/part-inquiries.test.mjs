@@ -17,7 +17,7 @@ async function request(route,method='GET',body,session){
  return {code:response.status,data,cookie:response.headers.get('set-cookie')?.split(';')[0],csrf:data.csrf,headers:response.headers};
 }
 const expect=async(r,code)=>{assert.equal(r.code,code,JSON.stringify(r.data).slice(0,500));return r;};
-const entry={name:'Customer Example',phone:'9876543210',email:'client@example.test',whatsapp:true,brand:'Apple',model:'iPhone 13',variant:'A2633',colour:'Black',category:'Display & touchscreen',description:'Need OLED display for exact iPhone 13 model',qty:2,grade:'High-quality compatible',method:'Delivery requested',locality:'Sigra',address:'Example customer provided address near Sigra Varanasi',pincode:'221010',urgency:'As soon as possible',notes:'Please quote both quality variants',consent:true,request_key:'1'.repeat(64)};
+const entry={name:'Customer Example',phone:'9876543210',email:'client@example.test',whatsapp:true,brand:'Apple',model:'iPhone 13',variant:'A2633',colour:'Black',category:'Display & touchscreen',description:'Need OLED display for exact iPhone 13 model',qty:2,grade:'High-quality compatible',method:'Delivery requested',locality:'Sigra',city:'Varanasi',region:'Uttar Pradesh',address:'Example customer provided address near Sigra Varanasi',pincode:'221010',urgency:'As soon as possible',notes:'Please quote both quality variants',consent:true,request_key:'1'.repeat(64)};
 
 test('parts enquiry: unique ID, private token, queue, response, acceptance, immutable acceptance, duplicate key and role protection',async()=>{
  try{
@@ -45,7 +45,7 @@ test('parts enquiry: unique ID, private token, queue, response, acceptance, immu
   assert.equal((await request('/api/part-inquiries/admin/overview','GET',undefined,tech)).code,403);
   assert.equal((await request('/api/part-inquiries/admin/overview','GET',undefined,own)).data.unread,1);
   const adminDetail=(await expect(await request('/api/part-inquiries/admin/'+made.ref,'GET',undefined,manager),200)).data;
-  assert.equal(adminDetail.address,entry.address);assert.equal(adminDetail.phone,entry.phone);assert.ok(adminDetail.created_at);
+  assert.equal(adminDetail.address,entry.address);assert.equal(adminDetail.city,'Varanasi');assert.equal(adminDetail.region,'Uttar Pradesh');assert.equal(adminDetail.phone,entry.phone);assert.ok(adminDetail.created_at);
   assert.equal((await request('/api/part-inquiries/admin/overview','GET',undefined,own)).data.unread,0);
   const quote={status:'quoted',availability:'in_stock',price_rupees:1250,delivery_rupees:80,eta:'1–2 working days',quote_note:'Compatible OLED. Staff verified the part grade.',quote_valid_until:'2099-12-31'};
   assert.equal((await request('/api/part-inquiries/admin/'+made.ref,'PATCH',quote)).code,401);

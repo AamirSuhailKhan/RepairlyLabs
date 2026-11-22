@@ -1,0 +1,78 @@
+/* RepairlyLabs — India-wide human-first parts enquiry redesign.
+   Public product cards, price listings and image placeholders have been replaced
+   with a request-led journey. Existing repair operations and staff tools remain. */
+:root { --indigo-ink:#0b1c2b;--soft-cream:#fbfaf7;--peach:#ffede6;--warm-orange:#f96a47;--warm-line:#e7e6e2; }
+html { scroll-padding-top:110px; }
+body { background:#fff; }
+:focus-visible{outline:3px solid #ffb17a;outline-offset:3px}
+.navbar{background:#0b1e30;border-color:rgba(189,217,234,.34);box-shadow:0 18px 45px rgba(1,13,25,.3)}
+.navbar.scrolled{background:#0b1e30}
+.hero-proof { flex-wrap:wrap; }
+.hero .proof{white-space:normal}
+/* Emotional trust cues are explanatory, never invented reviews or numerical claims. */
+.india-parts-section{position:relative;overflow:hidden;background:var(--soft-cream);padding:112px 0 125px;border-block:1px solid #f2eeea}
+.india-parts-section:before{content:'';position:absolute;right:-16%;top:-55%;width:780px;height:780px;border-radius:50%;background:radial-gradient(circle,rgba(255,162,117,.2),transparent 66%);pointer-events:none}
+.parts-spotlight{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(355px,.9fr);align-items:center;gap:clamp(44px,7vw,112px);position:relative}
+.parts-spotlight-copy h2{font-size:clamp(2.4rem,4.25vw,4.45rem);max-width:780px;margin:0 0 24px;letter-spacing:-.055em}
+.parts-spotlight-copy h2 .accent{color:#ef6848}
+.parts-spotlight-copy>p{font-size:clamp(.97rem,1.25vw,1.1rem);line-height:1.86;color:#5c6a74;max-width:590px;margin-bottom:25px}
+.parts-spotlight-copy>p strong{color:var(--ink)}
+.parts-pill-row{display:flex;flex-wrap:wrap;gap:11px;margin:25px 0 35px}
+.parts-pill-row span{display:inline-flex;align-items:center;gap:8px;border:1px solid #e6ded7;background:#fff;color:#354a57;padding:10px 12px;border-radius:40px;font-size:.78rem;font-weight:700;box-shadow:0 4px 18px #2b364109}
+.parts-pill-row svg{color:#cf6445}
+.parts-spotlight-actions{display:flex;align-items:center;flex-wrap:wrap;gap:24px}
+.part-request-preview{background:#fff;border-radius:28px;border:1px solid #e5e9ea;box-shadow:0 35px 85px rgba(27,38,50,.1);overflow:hidden;transform:rotate(1deg);transition:transform .4s ease,box-shadow .4s}
+.part-request-preview:hover{transform:rotate(0deg) translateY(-5px);box-shadow:0 40px 90px rgba(27,38,50,.14)}
+.preview-head{display:flex;align-items:center;gap:13px;min-height:60px;padding:15px 24px;border-bottom:1px solid #edf0f1;color:#58707e;font-size:.68rem;letter-spacing:.14em;font-weight:800}
+.preview-dots{display:flex;gap:5px}.preview-dots i{display:block;width:7px;height:7px;border-radius:50%;background:#f8a28d}.preview-dots i:nth-child(2){background:#f6c88f}.preview-dots i:nth-child(3){background:#a5d8c6}
+.preview-secure{margin-left:auto;color:#158066;letter-spacing:0;display:flex;align-items:center;gap:4px;font-size:.73rem}
+.preview-body{padding:29px 28px}
+.preview-overline{color:#e57452;display:block;font-size:.73rem;font-weight:800;letter-spacing:.14em;margin-bottom:16px}
+.preview-input{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;min-height:54px;background:#f9fafb;color:#506270;border:1px solid #e4e8ec;border-radius:11px;padding:13px 16px;font-size:.89rem}
+.preview-input svg{color:#8f9ca5}
+.preview-handoff{display:flex;align-items:center;gap:11px;font-size:.81rem;line-height:1.5;color:#285b52;background:#edf7f1;padding:16px;margin-top:21px;border-radius:12px}
+.preview-handoff svg{color:#239576}
+.preview-button{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:19px;background:#f96a47;color:#fff;border-radius:12px;min-height:50px;font-weight:800;font-size:.83rem}
+.preview-foot{text-align:center;padding:15px;color:#768994;letter-spacing:.08em;font-size:.63rem;background:#fcfcfd;border-top:1px solid #eff1f2;font-weight:800}
+/* Dedicated /parts landing: no product grid or pricing. */
+.parts-landing-hero{background:radial-gradient(ellipse at 85% 40%,#183c4f 0%,transparent 55%),linear-gradient(125deg,#071422,#112538);color:#fff;padding:176px 0 110px;overflow:hidden}
+.parts-land-grid{display:grid;grid-template-columns:minmax(0,1.06fr) minmax(325px,.83fr);gap:clamp(40px,7vw,112px);align-items:center}
+.parts-landing-hero h1{font-size:clamp(3.1rem,5.8vw,6rem);line-height:1.06;letter-spacing:-.06em;margin-bottom:24px}
+.parts-landing-hero p{color:#becfd8;line-height:1.85;max-width:650px;font-size:1.08rem}
+.parts-landing-hero .hero-buttons{display:flex;flex-wrap:wrap;gap:13px;margin-top:30px}
+.parts-hero-assurance{border-top:1px solid #ffffff25;padding-top:24px;margin-top:32px;display:flex;flex-wrap:wrap;gap:18px;color:#c5ddd6;font-size:.78rem;font-weight:700}
+.parts-hero-assurance span{display:inline-flex;align-items:center;gap:8px}
+.parts-hero-assurance svg{color:#89dbc2}
+.quote-journey-card{border:1px solid #ffffff30;border-radius:27px;background:linear-gradient(160deg,#fdfcfb,#f0f4f4);box-shadow:0 25px 90px #0004;color:#152b3b;overflow:hidden;transform:rotate(1deg)}
+.quote-journey-top{padding:25px 28px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e2e7e9}
+.mini-label{font-size:.71rem;font-weight:800;letter-spacing:.1em;color:#788b94}
+.quote-soft-dot{height:13px;width:13px;background:#f86c48;border:3px solid #fee5d9;border-radius:50%}
+.journey-line{display:flex;align-items:center;gap:16px;padding:21px 27px;border-bottom:1px solid #e9eded}
+.journey-num{display:grid;place-items:center;flex-shrink:0;width:44px;height:44px;border-radius:15px;background:#fff0ea;font-family:var(--display);font-weight:800;color:#f16b49}
+.journey-line div{flex:1;min-width:0}.journey-line strong{display:block;font-size:.9rem}.journey-line p{font-size:.74rem;margin:4px 0 0;color:#798a94;line-height:1.4}
+.journey-line svg{color:#40a587}.quote-journey-note{font-size:.76rem;line-height:1.65;color:#61717c;padding:21px 28px;background:#fafafa}
+.part-types-section{background:#fff}.part-types-list{border-top:1px solid #dfe5e9;margin-top:20px}
+.part-type-row{display:flex;align-items:center;gap:25px;min-height:104px;padding:23px 22px;border-bottom:1px solid #dfe5e9;transition:background .2s,padding .25s,color .2s}
+.part-type-row:hover{background:#fff6f1;padding-inline:30px}
+.part-type-index{font-size:.78rem;color:#ca6c55;font-weight:800;min-width:38px}
+.part-type-row strong{font:700 clamp(1.2rem,2.2vw,1.8rem)/1.2 var(--display);letter-spacing:-.04em;flex:1}
+.part-type-action{color:#aa5844;font-size:.8rem;display:flex;align-items:center;gap:11px;white-space:nowrap;font-weight:800}
+.parts-followup{display:flex;align-items:center;justify-content:space-between;gap:30px;padding:37px 40px;background:#fff7f2;border-radius:24px;border:1px solid #fae4da;margin-top:55px}
+.parts-followup>div{max-width:650px}.parts-followup>div>svg{color:#ef6c4a;margin-right:9px}.parts-followup strong{font-family:var(--display);font-size:1.2rem}.parts-followup p{margin:9px 0 0;color:#646c75;font-size:.88rem}
+.india-confidence{background:#f8f9f9;border-top:1px solid #e8e9e9}
+.confidence-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:30px}
+.confidence-item{background:#fff;border:1px solid #e7eaeb;border-radius:24px;padding:34px;box-shadow:0 15px 35px rgba(18,43,56,.03)}
+.confidence-item>span{font:800 1rem var(--display);color:#e36f50}
+.confidence-item h3{font-size:1.4rem;margin:25px 0 13px}
+.confidence-item p{color:#687986;font-size:.9rem;margin:0}
+/* Footer and navigation consistent with nationwide parts + location-dependent repairs. */
+.india-footer{background:#0c1c2a;color:#d4dfe5}
+.footer-callout{display:flex;align-items:center;justify-content:space-between;gap:24px;border:1px solid #ffffff2c;border-radius:23px;padding:34px 40px;margin:20px 0 60px;background:radial-gradient(circle at 10% 10%,#244050,#142637 74%)}
+.footer-callout .eyebrow{color:#ff9879;margin-bottom:10px}.footer-callout h2{font-size:clamp(1.65rem,2.9vw,2.5rem);margin:0 0 8px;color:#fff}.footer-callout p{max-width:610px;color:#bdcdd6;margin:0;font-size:.9rem}.footer-callout .btn{flex-shrink:0}
+.india-footer .footer-top{padding-top:0}
+.india-footer .footer-top>div:first-child p{max-width:325px}
+.india-footer .footer-bottom{color:#9bb1be}
+@media(max-width:1050px){.parts-spotlight,.parts-land-grid{grid-template-columns:1fr 1fr;gap:32px}.parts-spotlight-copy h2{font-size:clamp(2.3rem,4vw,3.4rem)}.quote-journey-card{transform:none}}
+@media(max-width:780px){.parts-spotlight,.parts-land-grid,.confidence-grid{grid-template-columns:1fr}.india-parts-section{padding:75px 0}.part-request-preview{max-width:570px;margin:auto;transform:none}.parts-landing-hero{padding:140px 0 70px}.quote-journey-card{max-width:590px}.footer-callout{align-items:flex-start;flex-direction:column;padding:26px}.parts-followup{flex-direction:column;align-items:flex-start;padding:25px}}
+@media(max-width:620px){.parts-spotlight-copy h2{font-size:clamp(2.1rem,9vw,3rem)}.parts-spotlight-actions{display:grid;gap:18px;justify-items:start}.parts-spotlight-actions .btn{width:100%}.preview-body{padding:22px 18px}.preview-head{padding:15px 17px}.parts-landing-hero h1{font-size:clamp(2.7rem,11vw,3.65rem)}.parts-land-grid{gap:34px}.parts-landing-hero .hero-buttons{display:grid}.parts-landing-hero .hero-buttons .btn{width:100%}.parts-hero-assurance{gap:12px}.part-type-row{min-height:79px;padding-inline:5px;gap:12px}.part-type-row:hover{padding-inline:5px}.part-type-index{min-width:24px}.part-type-action{font-size:.7rem}.footer-callout{margin-bottom:42px}.india-confidence .confidence-item{padding:25px}}
+@media(prefers-reduced-motion:reduce){.part-request-preview,.part-type-row,.parts-spotlight-actions .btn{transition:none!important;transform:none!important}}

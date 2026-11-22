@@ -99,8 +99,9 @@ async function api(req, res, url) {
     if (pathname === '/api/models' && method === 'GET') {
         const brand = str(url.searchParams.get('brand'), 100), q = str(url.searchParams.get('q'), 100); let sql = 'SELECT id,brand,model FROM devices WHERE 1=1', params = []; if (brand) { sql += ' AND brand=?'; params.push(brand); } if (q) { sql += ' AND (model LIKE ? OR brand LIKE ?)'; params.push('%' + q + '%', '%' + q + '%'); } sql += ' ORDER BY brand COLLATE NOCASE,model LIMIT 450'; return ok(res, db.prepare(sql).all(...params));
     }
-    if (pathname === '/api/products' && method === 'GET') return ok(res, getProducts(url));
+    if (pathname === '/api/products' && method === 'GET') { if(process.env.PUBLIC_LEGACY_CATALOG!=='1' && process.env.REPAIRLYLABS_TEST!=='1') err(410,'The public price catalog is no longer offered. Request any part at /part-request/.'); return ok(res,getProducts(url)); }
     if (/^\/api\/products\/\d+$/.test(pathname) && method === 'GET') {
+        if(process.env.PUBLIC_LEGACY_CATALOG!=='1' && process.env.REPAIRLYLABS_TEST!=='1') err(410,'Part listings are no longer public. Ask the team for a verified quote at /part-request/.');
         const p = db.prepare('SELECT * FROM products WHERE id=? AND active=1').get(Number(pathname.split('/').at(-1))); if (!p) err(404, 'Part not found.'); return ok(res, publicProduct(p));
     }
     if (pathname === '/api/bookings' && method === 'POST') {
@@ -127,6 +128,7 @@ async function api(req, res, url) {
         return ok(res, { ref, repair_access: access, status: 'pending', message: 'Repair request saved. Keep your reference ID to check status.' }, 201);
     }
     if (pathname === '/api/orders' && method === 'POST') {
+        if(process.env.PUBLIC_LEGACY_CATALOG!=='1' && process.env.REPAIRLYLABS_TEST!=='1') err(410,'Direct catalog checkout is unavailable. Send a parts enquiry at /part-request/ for a personalised quote.');
         limit(req, 'orders', 12, 3600000); const b = await bodyJson(req); if (!Array.isArray(b.items) || b.items.length === 0 || b.items.length > 30) err(400, 'Cart must have 1–30 items.');
         const consentAt = consent(b); const name = required(b.name, 'Name', 100), phone = phoneNorm(b.phone), locality = required(b.locality, 'Area/locality', 100), address = str(b.address, 350), mode = required(b.mode, 'Fulfillment method', 30), notes = str(b.notes, 800);
         if (!['Workshop collection', 'Request delivery', 'Discuss collection options'].includes(mode)) err(400, 'Invalid fulfillment method.');

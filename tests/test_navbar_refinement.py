@@ -53,17 +53,16 @@ def test_navbar():
         links_box = page.locator("#navbar .nav-links").bounding_box()
         actions_box = page.locator("#navbar .nav-actions").bounding_box()
         book_btn_box = page.locator("#navbar .nav-book").bounding_box()
-        cart_box = page.locator("#navbar .cart-trigger").bounding_box()
 
         log(f"   Logo: x={logo_box['x']:.1f}, width={logo_box['width']:.1f}")
         log(f"   Links: x={links_box['x']:.1f}, width={links_box['width']:.1f}")
         log(f"   Actions: x={actions_box['x']:.1f}, width={actions_box['width']:.1f}")
-        log(f"   Book CTA: x={book_btn_box['x']:.1f}, width={book_btn_box['width']:.1f}")
+        log(f"   Action CTA: x={book_btn_box['x']:.1f}, width={book_btn_box['width']:.1f}")
 
         # Check bounds
         assert logo_box['x'] >= nav_box['x'] - 1, "Logo must be inside navbar left boundary"
         assert actions_box['x'] + actions_box['width'] <= nav_box['x'] + nav_box['width'] + 2, "Actions must be inside navbar right boundary"
-        assert book_btn_box['x'] + book_btn_box['width'] <= nav_box['x'] + nav_box['width'] + 2, "Book button must be inside navbar right boundary"
+        assert book_btn_box['x'] + book_btn_box['width'] <= nav_box['x'] + nav_box['width'] + 2, "Action button must be inside navbar right boundary"
         log("   VERIFIED: All controls fit cleanly inside the navbar pill (0 overflow).")
 
         page.screenshot(path=str(RESULTS_DIR / "01_desktop_1440_navbar.png"))
@@ -85,7 +84,7 @@ def test_navbar():
         log("\n2. Testing Primary Navigation Links...")
         pages_to_test = [
             ("Repairs", "/repairs", ".service-grid"),
-            ("Spare parts", "/parts", "#shop-result"),
+            ("Find a part", "/parts", ".parts-landing-hero"),
             ("Track request", "/track", "form"),
             ("Our approach", "/about", ".page-hero"),
             ("Contact", "/contact", "form[data-form='contact']"),
@@ -101,7 +100,7 @@ def test_navbar():
 
         # Test 'Request a part' link
         log("   Navigating to 'Request a part' (/part-request/)...")
-        page.click("#navbar .nav-links a[href='/part-request/']")
+        page.click("#navbar .nav-book")
         page.wait_for_selector("#enquiry-form, .hero")
         assert "/part-request/" in page.url
         page.screenshot(path=str(RESULTS_DIR / "03_navigated_part_request.png"))

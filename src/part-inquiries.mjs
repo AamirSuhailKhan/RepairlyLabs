@@ -29,6 +29,11 @@ export function createPartInquiries({db,auth,ok,bodyJson,limit,notify}) {
   CREATE INDEX IF NOT EXISTS idx_rl_part_inquiry_events_ref ON rl_part_inquiry_events(ref,id);
   CREATE TABLE IF NOT EXISTS rl_part_inquiry_photos(ref TEXT PRIMARY KEY REFERENCES rl_part_inquiries(ref),image_data TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);`);
 
+  // Add India-wide delivery fields without dropping or rewriting existing enquiries.
+  const enquiryColumns=new Set(db.prepare('PRAGMA table_info(rl_part_inquiries)').all().map(c=>c.name));
+  if(!enquiryColumns.has('city'))db.exec("ALTER TABLE rl_part_inquiries ADD COLUMN city TEXT NOT NULL DEFAULT ''");
+  if(!enquiryColumns.has('region'))db.exec("ALTER TABLE rl_part_inquiries ADD COLUMN region TEXT NOT NULL DEFAULT ''");
+
   const prepare = (sql) => db.prepare(sql);
   const fail=(status,message)=>{throw Object.assign(new Error(message),{status});};
   const trim=(v, max=200)=>typeof v==='string'?v.trim().slice(0,max):'';
@@ -42,7 +47,7 @@ export function createPartInquiries({db,auth,ok,bodyJson,limit,notify}) {
   const run=(s,...p)=>prepare(s).run(...p);
   const tx=fn=>{db.exec('BEGIN IMMEDIATE');try {const r=fn();db.exec('COMMIT');return r;} catch(e){db.exec('ROLLBACK');throw e;}};
   const log=(ref,actor,action,note='')=>run('INSERT INTO rl_part_inquiry_events(ref,actor,action,note) VALUES(?,?,?,?)',ref,actor,action,trim(note,400));
-  const view=r=>({ref:r.ref,brand:r.brand,model:r.model,variant:r.variant,colour:r.colour,category:r.category,description:r.description,qty:r.qty,grade:r.grade,method:r.method,status:r.status,availability:r.availability,price_paise:r.price_paise,delivery_paise:r.delivery_paise,eta:r.eta,quote_note:r.quote_note,quote_valid_until:r.quote_valid_until,replied_at:r.replied_at,created_at:r.created_at,updated_at:r.updated_at,customer_decision_at:r.customer_decision_at});
+  const view=r=>({ref:r.ref,brand:r.brand,model:r.model,variant:r.variant,colour:r.colour,category:r.category,description:r.description,qty:r.qty,grade:r.grade,method:r.method,city:r.city,region:r.region,status:r.status,availability:r.availability,price_paise:r.price_paise,delivery_paise:r.delivery_paise,eta:r.eta,quote_note:r.quote_note,quote_valid_until:r.quote_valid_until,replied_at:r.replied_at,created_at:r.created_at,updated_at:r.updated_at,customer_decision_at:r.customer_decision_at});
   const requireAccess=(b)=>{const ref=safeRef(b.ref),token=trim(b.access,200),r=query('SELECT * FROM rl_part_inquiries WHERE ref=?',ref);if(!r|| !/^[A-Za-z0-9_-]{43}$/.test(token))fail(404,'Request not found or access code invalid.');const expected=Buffer.from(r.token_hash,'hex'),actual=Buffer.from(hash(token),'hex');if(!timingSafeEqual(expected,actual))fail(404,'Request not found or access code invalid.');return r;};
   const staff=req=>{const a=auth(req);if(!['owner','manager'].includes(a.permission))fail(403,'Owner or manager access required.');return a;};
   const eventNotify=(event,data)=>{try {Promise.resolve(notify?.(event,data)).catch(e=>console.error('[part-request notify]',e.message));}catch(e){console.error('[part-request notify]',e.message);}};
@@ -64,8 +69,9 @@ export function createPartInquiries({db,auth,ok,bodyJson,limit,notify}) {
       const qty=Number(b.qty??1);if(!Number.isSafeInteger(qty)||qty<1||qty>20)fail(400,'Quantity must be 1–20.');
       const grade=trim(b.grade,70)||'Any compatible option';if(!['Any compatible option','Original / OEM preference','High-quality compatible','Budget compatible','Not sure'].includes(grade))fail(400,'Invalid part quality preference.');
       const method=trim(b.method,45);if(!['Workshop collection','Delivery requested','Discuss options'].includes(method))fail(400,'Invalid delivery preference.');
-      const locality=needed(b.locality,'Area / locality',100),address=trim(b.address,350),pincode=trim(b.pincode,6);
+      const locality=needed(b.locality,'Area / locality',100),city=trim(b.city,100),region=trim(b.region,80),address=trim(b.address,350),pincode=trim(b.pincode,6);
       if(method==='Delivery requested'&&!address)fail(400,'Full address is needed for delivery requests.');
+      if(method==='Delivery requested'&&(!city||!region||!pincode))fail(400,'City, state and six-digit PIN code are required for delivery requests.');
       if(pincode&&!/^[1-9]\d{5}$/.test(pincode))fail(400,'Enter a valid 6-digit PIN code.');
       const urgency=trim(b.urgency,25)||'Flexible';if(!['Flexible','Within 24 hours','This week','As soon as possible'].includes(urgency))fail(400,'Invalid urgency.');
       const whatsapp=(b.whatsapp===true||b.whatsapp==='on')?1:0;
@@ -77,7 +83,7 @@ export function createPartInquiries({db,auth,ok,bodyJson,limit,notify}) {
         image=b.image;
       }
       if(typeof b.request_key!=='string'||!/^[0-9a-f]{64}$/.test(b.request_key))fail(400,'Refresh the page and retry your request.');
-      const key_hash=hash(b.request_key),fingerprint=hash(JSON.stringify([name,mobile,email,brand,model,variant,colour,category,description,qty,grade,method,locality,address,pincode,urgency,notes,whatsapp,image?hash(image):'']));
+      const key_hash=hash(b.request_key),fingerprint=hash(JSON.stringify([name,mobile,email,brand,model,variant,colour,category,description,qty,grade,method,locality,city,region,address,pincode,urgency,notes,whatsapp,image?hash(image):'']));
       let result;
       tx(()=>{
         const prior=query('SELECT * FROM rl_part_inquiries WHERE key_hash=?',key_hash);
@@ -86,11 +92,12 @@ export function createPartInquiries({db,auth,ok,bodyJson,limit,notify}) {
         const ref=makeRef(),access=keyToken(b.request_key,ref);
         run(`INSERT INTO rl_part_inquiries(ref,name,phone,email,whatsapp,brand,model,variant,colour,category,description,qty,grade,method,locality,address,pincode,urgency,notes,token_hash,key_hash,fingerprint,consent_at)
           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,ref,name,mobile,email,whatsapp,brand,model,variant,colour,category,description,qty,grade,method,locality,address,pincode,urgency,notes,hash(access),key_hash,fingerprint,new Date().toISOString());
+        run('UPDATE rl_part_inquiries SET city=?,region=? WHERE ref=?',city,region,ref);
         if(image)run('INSERT INTO rl_part_inquiry_photos(ref,image_data) VALUES(?,?)',ref,image);
         run('INSERT INTO rl_reference_registry(ref) VALUES(?)',ref);log(ref,'customer','submitted',`${brand} ${model}: ${category}`);
         result={ref,access,status:'received',replayed:false};
       });
-      if(!result.replayed)eventNotify('parts.inquiry_requested',{ref:result.ref,name,phone:mobile,email,brand,model,category,description,qty,locality,address,pincode,urgency,created_at:new Date().toISOString()});
+      if(!result.replayed)eventNotify('parts.inquiry_requested',{ref:result.ref,name,phone:mobile,email,brand,model,category,description,qty,locality,city,region,address,pincode,urgency,created_at:new Date().toISOString()});
       return ok(res,{...result,message:'Your parts enquiry is saved. We will check actual stock and respond with pricing and availability. A reply time is not guaranteed.'},result.replayed?200:201);
     }
     if(path==='/access' && method==='POST'){
@@ -121,9 +128,9 @@ export function createPartInquiries({db,auth,ok,bodyJson,limit,notify}) {
       if(s&&!['received','reviewing','quoted','unavailable','accepted','declined','closed'].includes(s))fail(400,'Invalid status.');
       let where='WHERE 1=1',args=[];
       if(s){where+=' AND status=?';args.push(s);}
-      if(search){where+=' AND (ref LIKE ? OR name LIKE ? OR phone LIKE ? OR brand LIKE ? OR model LIKE ? OR category LIKE ? OR locality LIKE ?)';const a='%'+search+'%';args.push(...Array(7).fill(a));}
+      if(search){where+=' AND (ref LIKE ? OR name LIKE ? OR phone LIKE ? OR brand LIKE ? OR model LIKE ? OR category LIKE ? OR locality LIKE ? OR city LIKE ? OR region LIKE ?)';const a='%'+search+'%';args.push(...Array(9).fill(a));}
       const total=query('SELECT COUNT(*) n FROM rl_part_inquiries '+where,...args).n;
-      const rows=all(`SELECT id,ref,name,phone,brand,model,category,qty,method,locality,status,availability,read_at,price_paise,delivery_paise,created_at,replied_at,updated_at FROM rl_part_inquiries ${where} ORDER BY CASE WHEN status='received' THEN 0 WHEN status='reviewing' THEN 1 ELSE 2 END, CASE WHEN status IN ('received','reviewing') THEN created_at END ASC, created_at DESC LIMIT 50 OFFSET ?`,...args,(page-1)*50);
+      const rows=all(`SELECT id,ref,name,phone,brand,model,category,qty,method,locality,city,region,status,availability,read_at,price_paise,delivery_paise,created_at,replied_at,updated_at FROM rl_part_inquiries ${where} ORDER BY CASE WHEN status='received' THEN 0 WHEN status='reviewing' THEN 1 ELSE 2 END, CASE WHEN status IN ('received','reviewing') THEN created_at END ASC, created_at DESC LIMIT 50 OFFSET ?`,...args,(page-1)*50);
       const summary=all('SELECT status,COUNT(*) n FROM rl_part_inquiries GROUP BY status');const unread=query("SELECT COUNT(*) n FROM rl_part_inquiries WHERE read_at IS NULL").n;const overdue=query("SELECT COUNT(*) n FROM rl_part_inquiries WHERE status IN ('received','reviewing') AND created_at<datetime('now','-10 minutes')").n;
       return ok(res,{items:rows,total,page,page_size:50,summary:Object.fromEntries(summary.map(r=>[r.status,r.n])),unread,overdue,server_time:new Date().toISOString()});
     }
