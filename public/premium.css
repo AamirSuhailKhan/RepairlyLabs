@@ -97,15 +97,13 @@ a:focus-visible,button:focus-visible,summary:focus-visible,input:focus-visible,s
 .eyebrow{letter-spacing:.145em}
 .services{background:#f9f8f6}
 .service-grid{gap:16px}
-.service-card,.service-card.compact{min-height:256px;border-radius:23px;border:1px solid #e8e9e5;background:#fff;padding:27px;box-shadow:0 3px 13px rgba(12,38,53,.015);transition:transform .35s cubic-bezier(.22,.68,0,1),border-color .3s,background .3s,box-shadow .3s}
-.service-card:hover,.service-card.compact:hover{transform:translateY(-7px);border-color:#f0b69e;box-shadow:0 25px 55px rgba(28,53,60,.085)}
+.service-card,.service-card.compact{min-height:256px;border-radius:23px;border:1px solid #e0e6e7;background:#fff;color:#102637;padding:27px;box-shadow:0 3px 13px rgba(12,38,53,.015);transition:transform .35s cubic-bezier(.22,.68,0,1),border-color .3s,background .3s,box-shadow .3s}
+.service-card:hover,.service-card.compact:hover{transform:translateY(-6px);background:#fffdfb;border-color:#ed9d81;box-shadow:0 23px 48px rgba(28,53,60,.075)}
+.service-card:focus-visible{border-color:#df7a5a;box-shadow:0 0 0 4px rgba(244,104,73,.14)}
+.service-card .mini-arrow{color:#e06a4c}
 .service-card .service-icon{height:52px;width:52px;border-radius:15px;background:#fff0e9;color:#e76b4d;margin-bottom:28px}
 .service-card h3{font-size:clamp(1.1rem,1.33vw,1.4rem);letter-spacing:-.04em;line-height:1.3}
 .service-card p{color:#677988;line-height:1.75;font-size:.85rem}
-.service-card:nth-child(1),.service-card:nth-child(6){background:#123143;border-color:#254253;color:#fff}
-.service-card:nth-child(1) p,.service-card:nth-child(6) p{color:#c0d2db}
-.service-card:nth-child(1) .service-icon,.service-card:nth-child(6) .service-icon{background:#ffffff15;color:#ffac91}
-.service-card:nth-child(1) .mini-arrow,.service-card:nth-child(6) .mini-arrow{color:#ffc0a7}
 .service-tag{display:none}
 /* Pricing transparency: concrete decisions, not fabricated low-price claims. */
 .pricing-trust-section{background:#fcf6f0;border-top:1px solid #f0e5de;border-bottom:1px solid #f0e5de}
@@ -245,3 +243,13 @@ body.premium-enhanced .premium-tappable{will-change:auto}
 @keyframes rl-enter{from{opacity:.86;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
 #main-content>.hero,#main-content>.page-hero,#main-content>.parts-landing-hero{animation:rl-enter .55s cubic-bezier(.22,.61,.36,1) both}
 @media(prefers-reduced-motion:reduce){#main-content>.hero,#main-content>.page-hero,#main-content>.parts-landing-hero{animation:none!important}}
+
+/* Repair-first conversion layout. Public catalog and staff payment flows unchanged. */
+.cta-actions,.footer-callout-actions{display:flex;align-items:center;justify-content:flex-end;gap:18px;flex-wrap:wrap;flex-shrink:0}
+.cta-secondary-link,.footer-secondary-link{display:inline-flex;align-items:center;gap:7px;font-size:.88rem;font-weight:750;color:#e9f4f5;text-decoration:none;white-space:nowrap;transition:color .2s ease,transform .2s ease}
+.cta-secondary-link:hover,.footer-secondary-link:hover{color:#ffb39d;transform:translateX(2px)}
+.cta-secondary-link:focus-visible,.footer-secondary-link:focus-visible{outline:2px solid #ffac8d;outline-offset:5px;border-radius:4px}
+.footer-callout-actions{max-width:420px}
+@media(max-width:980px){.cta-flex{align-items:flex-start}.cta-actions{flex-direction:column;align-items:flex-start;gap:13px}}
+@media(max-width:780px){.footer-callout-actions{justify-content:flex-start}}
+@media(max-width:620px){.cta-actions{width:100%}.cta-actions .btn,.footer-callout-actions .btn{width:100%;justify-content:center}.footer-callout-actions{width:100%}.cta-secondary-link{margin-top:3px}}

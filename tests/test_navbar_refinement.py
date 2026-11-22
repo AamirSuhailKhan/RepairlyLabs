@@ -98,12 +98,12 @@ def test_navbar():
             assert page.url.endswith(path) or page.url.endswith(path + "/"), f"URL should match {path}"
             page.wait_for_timeout(200)
 
-        # Test 'Request a part' link
-        log("   Navigating to 'Request a part' (/part-request/)...")
+        # Test 'Request a Repair' CTA button
+        log("   Navigating via CTA 'Request a Repair' (/repairs#booking)...")
         page.click("#navbar .nav-book")
-        page.wait_for_selector("#enquiry-form, .hero")
-        assert "/part-request/" in page.url
-        page.screenshot(path=str(RESULTS_DIR / "03_navigated_part_request.png"))
+        page.wait_for_selector("form[data-form='booking'], #booking")
+        assert "/repairs" in page.url
+        page.screenshot(path=str(RESULTS_DIR / "03_navigated_repair_booking.png"))
 
         # Navigate back to home
         page.goto(f"{BASE_URL}/", wait_until="networkidle")
