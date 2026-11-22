@@ -1,0 +1,14 @@
+{
+  "status": "NO_MATCHES_FOR_CONFIGURED_PATTERNS",
+  "files_scanned": 107,
+  "findings": [],
+  "history": {
+    "status": "BLOCKED_NO_GIT_HISTORY_IN_ARCHIVE",
+    "commits_scanned": 0
+  },
+  "notes": [
+    "Matching secret text is NEVER printed.",
+    "This heuristic scan does not certify that the repository or remote Git history is clean.",
+    "If a secret was published, revoke it with its provider; Git history cleanup alone is insufficient."
+  ]
+}

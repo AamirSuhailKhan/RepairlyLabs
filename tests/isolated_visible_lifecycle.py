@@ -13,6 +13,7 @@ import tempfile
 import pathlib
 import subprocess
 import ctypes
+import secrets
 from playwright.sync_api import sync_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -26,7 +27,7 @@ PORT = 3005
 BASE_URL = f"http://127.0.0.1:{PORT}"
 
 TEST_ADMIN_USER = "testowner"
-TEST_ADMIN_PASS = "LifecycleTest2026!"
+TEST_ADMIN_PASS = secrets.token_urlsafe(30)  # ephemeral; never written to audit reports
 
 findings = {
     "lifecycle_features": {},
@@ -36,34 +37,70 @@ findings = {
         "isolated_db": True,
         "real_db_preserved": True,
         "port": PORT,
-        "chrome_version": "157.0.8103.79"
+        "chrome_version": "NOT VERIFIED IN THIS EXECUTION"
     }
 }
 
 def log(msg):
     print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
 
+def current_windows_desktop_name():
+    """Identify the calling thread desktop; headed mode alone is not proof."""
+    if os.name != "nt":
+        return None
+    from ctypes import wintypes
+    user32=ctypes.windll.user32
+    kernel32=ctypes.windll.kernel32
+    handle=user32.GetThreadDesktop(kernel32.GetCurrentThreadId())
+    buffer=ctypes.create_unicode_buffer(256)
+    required=wintypes.DWORD()
+    if not user32.GetUserObjectInformationW(handle, 2, buffer, ctypes.sizeof(buffer), ctypes.byref(required)):
+        return "UNAVAILABLE"
+    return buffer.value
+
+
 def bring_to_foreground():
+    # A process running on another Window Station desktop cannot display
+    # windows on WinSta0\\Default. Never claim physical visibility in that case.
+    if current_windows_desktop_name() != "Default":
+        raise RuntimeError("BLOCKED: Chrome runner is not on the interactive Default desktop. Open this script yourself from the Windows desktop.")
+    user32 = ctypes.windll.user32
+    def enum_cb(hwnd, _):
+        buff=ctypes.create_unicode_buffer(256)
+        user32.GetWindowTextW(hwnd,buff,256)
+        if "RepairlyLabs" in buff.value:
+            user32.ShowWindow(hwnd, 3)
+            user32.SetForegroundWindow(hwnd)
+        return True
+    callback=ctypes.WINFUNCTYPE(ctypes.c_bool,ctypes.c_void_p,ctypes.c_void_p)(enum_cb)
+    user32.EnumWindows(callback,0)
+
+
+def capture_physical_desktop_proof():
+    """Local-only full-monitor capture, not a Playwright page screenshot."""
+    if current_windows_desktop_name() != "Default":
+        raise RuntimeError("BLOCKED: Cannot certify physical desktop visibility outside WinSta0\\Default.")
+    user32=ctypes.windll.user32
+    title=ctypes.create_unicode_buffer(512)
+    for _ in range(8):
+        foreground=user32.GetForegroundWindow()
+        user32.GetWindowTextW(foreground,title,512)
+        if "RepairlyLabs" in title.value:
+            break
+        time.sleep(0.25)
+        bring_to_foreground()
+    if "RepairlyLabs" not in title.value:
+        raise RuntimeError("BLOCKED: Chrome showing RepairlyLabs is not the foreground desktop window. Cannot claim visible test.")
     try:
-        user32 = ctypes.windll.user32
-        h_desktop = user32.OpenDesktopW("Default", 0, False, 0x01FF)
-        if h_desktop:
-            user32.SetThreadDesktop(h_desktop)
-            def enum_cb(hwnd, lparam):
-                class_buff = ctypes.create_unicode_buffer(256)
-                user32.GetClassNameW(hwnd, class_buff, 256)
-                buff = ctypes.create_unicode_buffer(256)
-                user32.GetWindowTextW(hwnd, buff, 256)
-                if "Chrome" in class_buff.value or "RepairlyLabs" in buff.value:
-                    user32.ShowWindow(hwnd, 3) # SW_MAXIMIZE
-                    user32.SwitchToThisWindow(hwnd, True)
-                    user32.SetForegroundWindow(hwnd)
-                return True
-            WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
-            user32.EnumDesktopWindows(h_desktop, WNDENUMPROC(enum_cb), 0)
-            user32.CloseDesktop(h_desktop)
-    except Exception as e:
-        log(f"Foreground note: {e}")
+        from PIL import ImageGrab
+    except ImportError as e:
+        raise RuntimeError("BLOCKED: Pillow required for real desktop proof. Install with: python -m pip install -r tests/requirements-visible.txt") from e
+    proof=ROOT / 'test-results' / 'screenshots' / 'local-physical-desktop-proof.png'
+    proof.parent.mkdir(parents=True,exist_ok=True)
+    ImageGrab.grab(all_screens=True).save(proof)
+    findings['environment']['desktop_proof']="PASS: foreground RepairlyLabs window on Windows Default desktop; PRIVATE full-monitor screenshot saved locally"
+    log("Verified Chrome on the interactive Default desktop; local PRIVATE monitor screenshot captured.")
+
 
 def run_lifecycle():
     log("=== STARTING ISOLATED FULL LIFECYCLE & VISIBLE AUDIT ===")
@@ -73,31 +110,34 @@ def run_lifecycle():
         log(f"1. Isolated test data directory initialized at: {test_data_dir}")
         
         # Test environment configuration
-        env = {
-            **os.environ,
-            "PORT": str(PORT),
-            "DATA_DIR": test_data_dir,
-            "NODE_ENV": "test",
-            "REPAIRLYLABS_TEST": "1",
-            "RAZORPAY_KEY_ID": "rzp_test_isolated_mock",
-            "RAZORPAY_KEY_SECRET": "mock_secret_test_key",
-            "RAZORPAY_WEBHOOK_SECRET": "mock_webhook_secret_key"
-        }
-        for k in ["RL_WA_TOKEN", "RL_RESEND_KEY", "RL_NOTIFY_URL", "NOTIFY_WEBHOOK_URL", "PUBLIC_ORIGIN"]:
-            env[k] = ""
+        # Start from a minimal, explicitly allow-listed environment.  In particular,
+        # never inherit real merchant, SMS, email or production DB credentials.
+        host_keys = ("PATH", "SYSTEMROOT", "WINDIR", "TEMP", "TMP", "USERPROFILE",
+                     "APPDATA", "LOCALAPPDATA", "COMSPEC", "PATHEXT", "HOME",
+                     "HOMEDRIVE", "HOMEPATH", "PLAYWRIGHT_BROWSERS_PATH")
+        env = {k: os.environ[k] for k in host_keys if k in os.environ}
+        env.update({"PORT": str(PORT), "DATA_DIR": test_data_dir,
+                    "NODE_ENV": "test", "REPAIRLYLABS_TEST": "1",
+                    "REPAIRLYLABS_IGNORE_DOTENV": "1",
+                    "PUBLIC_ORIGIN": "", "RL_WA_TOKEN": "", "RL_RESEND_KEY": "",
+                    "RL_NOTIFY_URL": "", "NOTIFY_WEBHOOK_URL": "",
+                    "RAZORPAY_KEY_ID": "", "RAZORPAY_KEY_SECRET": "",
+                    "RAZORPAY_WEBHOOK_SECRET": "", "TWILIO_AUTH_TOKEN": ""})
 
-        # Initialize isolated test database with admin owner account
-        posix_data_dir = pathlib.Path(test_data_dir).as_posix()
-        seed_js = f"""
-        import {{ openDatabase, passwordHash }} from './src/data.mjs';
-        import {{ initAccess }} from './src/admin-access.mjs';
-        const db = openDatabase('{posix_data_dir}');
+        # Seed with the password in an isolated child environment rather than
+        # exposing it as a command-line literal to process inspection/logs.
+        seed_js = """
+        import { openDatabase, passwordHash } from './src/data.mjs';
+        import { initAccess } from './src/admin-access.mjs';
+        const db = openDatabase(process.env.DATA_DIR);
         initAccess(db);
-        db.prepare('INSERT INTO admins(username, password_hash) VALUES(?,?)').run('{TEST_ADMIN_USER}', passwordHash('{TEST_ADMIN_PASS}'));
-        db.prepare('INSERT INTO admin_owner(id, username) VALUES(1,?)').run('{TEST_ADMIN_USER}');
+        db.prepare('INSERT INTO admins(username, password_hash) VALUES(?,?)').run('testowner', passwordHash(process.env.RL_ISOLATED_SEED_PASSWORD));
+        db.prepare('INSERT INTO admin_owner(id, username) VALUES(1,?)').run('testowner');
+        db.close();
         console.log('SEEDED_OK');
         """
-        init_proc = subprocess.run(["node", "--input-type=module", "-e", seed_js], cwd=str(ROOT), env=env, capture_output=True, text=True)
+        seed_env={**env, 'RL_ISOLATED_SEED_PASSWORD': TEST_ADMIN_PASS}
+        init_proc = subprocess.run(["node", "--input-type=module", "-e", seed_js], cwd=str(ROOT), env=seed_env, capture_output=True, text=True)
         assert "SEEDED_OK" in init_proc.stdout, f"Seeding failed: {init_proc.stderr}"
         log("2. Isolated test database schema and mock QR settings seeded.")
 
@@ -106,9 +146,30 @@ def run_lifecycle():
             "node", "--input-type=module", "-e",
             f"import {{ server }} from './src/server.mjs'; server.listen({PORT}, '127.0.0.1', () => console.log('SERVER_READY'));"
         ]
-        server_proc = subprocess.Popen(server_cmd, cwd=str(ROOT), env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        ready_line = server_proc.stdout.readline()
-        log(f"3. Isolated Node.js test server ready: {ready_line.strip()} (PID: {server_proc.pid})")
+        # Keep child output out of the terminal/report. Do not risk a pipe
+        # filling during lengthy browser automation; poll the real health URL.
+        import urllib.request
+        server_log_path = ROOT / 'test-results' / 'isolated-server-private.log'
+        server_log_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(server_log_path, 'w', encoding='utf-8') as server_log:
+            server_proc = subprocess.Popen(server_cmd, cwd=str(ROOT), env=env,
+                                           stdout=server_log, stderr=subprocess.STDOUT, text=True)
+            started = False
+            for _ in range(60):
+                if server_proc.poll() is not None:
+                    break
+                try:
+                    with urllib.request.urlopen(f"{BASE_URL}/api/health", timeout=1) as response:
+                        if response.status == 200:
+                            started = True
+                            break
+                except Exception:
+                    time.sleep(0.2)
+            if not started or server_proc.poll() is not None:
+                if server_proc.poll() is None:
+                    server_proc.terminate()
+                raise RuntimeError("Isolated test server unavailable or port 3005 in use. No live business port was contacted.")
+        log(f"3. Isolated Node.js test server ready (PID: {server_proc.pid})")
 
         try:
             with sync_playwright() as pw:
@@ -132,6 +193,7 @@ def run_lifecycle():
                 log("\n--- PHASE 1: Customer Repair Booking (Vivo V40 Pro) ---")
                 page.goto(f"{BASE_URL}/repairs#booking", wait_until="domcontentloaded")
                 bring_to_foreground()
+                capture_physical_desktop_proof()
                 page.wait_for_selector("form[data-form='booking']")
                 
                 # Fill repair booking form
@@ -280,7 +342,8 @@ def run_lifecycle():
                     }});
                     return res.json();
                 }}""")
-                log(f"   Customer approval stage: {approve_res.get('stage')}")
+                assert approve_res.get('stage') == 'approved', "Customer approval did not reach approved stage"
+                log("   Customer approval stage verified: approved")
                 cust_page.reload()
                 cust_page.wait_for_timeout(600)
                 cust_page.screenshot(path=str(SCREENSHOTS_DIR / "08_customer_quote_approved.png"))
@@ -306,7 +369,7 @@ def run_lifecycle():
                         }})
                     }});
                 }}""")
-                log("   >> Mock UPI QR enabled by Owner.")
+                log("   >> Synthetic QR enabled in temporary test database only.")
                 # Customer submits UPI QR Payment Claim for deposit (₹1,000 = 100000 paise)
                 utr_claim = "TESTUTR9876543210"
                 claim_res = cust_page.evaluate(f"""async () => {{
@@ -321,7 +384,8 @@ def run_lifecycle():
                     }});
                     return res.json();
                 }}""")
-                log(f"   Customer payment claim: state = {claim_res.get('open_payment')}")
+                assert claim_res.get('open_payment') == 'awaiting_verification', f"QR claim not pending: {claim_res}"
+                log("   Customer QR claim pending; no real bank transfer occurred")
                 cust_page.screenshot(path=str(SCREENSHOTS_DIR / "09_customer_payment_claimed.png"))
 
                 # Staff verifies bank payment
@@ -337,16 +401,18 @@ def run_lifecycle():
                             receipt: pendingPayment.receipt,
                             decision: 'approve',
                             confirmed: true,
-                            note: 'Verified in merchant HDFC bank statement credit'
+                            note: 'TEST ONLY: simulated manual bank confirmation in isolated database'
                         }})
                     }});
                     return res.json();
                 }}""")
-                log(f"   Staff payment verification: paid = ₹{review_res.get('paid')/100}, balance = ₹{review_res.get('balance')/100}")
+                assert review_res.get('paid') == 100000, "Mock manual payment did not update paid balance"
+                assert review_res.get('balance') == 260000, "Mock manual payment balance mismatch"
+                log("   MOCK verification of synthetic UPI claim: paid ₹1000, balance ₹2600 (NO bank transfer tested)")
                 page.reload()
                 page.wait_for_timeout(500)
                 page.screenshot(path=str(SCREENSHOTS_DIR / "10_staff_payment_verified.png"))
-                findings["lifecycle_features"]["payment_claim_and_verification"] = "PASS"
+                findings["lifecycle_features"]["payment_claim_and_verification"] = "PASS (MOCK: no actual bank credit verified)"
 
                 # -----------------------------------------------------------------
                 # LIFECYCLE PHASE 6: QUALITY CONTROL CHECKLIST
@@ -382,7 +448,8 @@ def run_lifecycle():
                     }});
                     return res.json();
                 }}""")
-                log(f"   Quality Control recorded: {qc_res.get('quality')}")
+                assert qc_res.get('quality'), f"Quality checks were not persisted: {qc_res}"
+                log("   Seven quality checks saved in isolated test database")
                 page.reload()
                 page.wait_for_timeout(500)
                 page.screenshot(path=str(SCREENSHOTS_DIR / "11_quality_control_passed.png"))
@@ -402,17 +469,20 @@ def run_lifecycle():
                     }});
                     return res.json();
                 }}""")
-                log(f"   Repair marked completed: stage = {comp_res.get('stage')}")
+                assert comp_res.get('stage') == 'completed', f"Repair not completed: {comp_res}"
+                log("   Repair completion verified")
 
                 # Pay remaining balance (₹2,600 = 260000 paise) via offline cash settlement
-                page.evaluate(f"""async () => {{
+                cash_res = page.evaluate(f"""async () => {{
                     const me = await (await fetch('/api/admin/me')).json();
-                    return fetch('/api/repair-center/admin/job/{repair_ref}/offline', {{
+                    const res = await fetch('/api/repair-center/admin/job/{repair_ref}/offline', {{
                         method: 'POST',
                         headers: {{ 'Content-Type': 'application/json', 'x-csrf-token': me.csrf }},
-                        body: JSON.stringify({{ amount: 260000, note: 'Remaining balance settled in cash upon customer delivery handover' }})
+                        body: JSON.stringify({{ amount: 260000, note: 'TEST ONLY: simulated cash settlement' }})
                     }});
+                    return {{ http: res.status, data: await res.json() }};
                 }}""")
+                assert cash_res.get('http') == 200 and cash_res.get('data',{}).get('paid') == 360000, f"Mock cash settlement failed: {cash_res}"
 
                 # Stage delivered
                 deliv_res = page.evaluate(f"""async () => {{
@@ -424,11 +494,12 @@ def run_lifecycle():
                     }});
                     return res.json();
                 }}""")
-                log(f"   Device delivered: final stage = {deliv_res.get('stage')}")
+                assert deliv_res.get('stage') == 'delivered', f"Device not delivered: {deliv_res}"
+                log("   Synthetic delivery stage verified")
                 page.reload()
                 page.wait_for_timeout(600)
                 page.screenshot(path=str(SCREENSHOTS_DIR / "12_repair_delivered_complete.png"))
-                findings["lifecycle_features"]["repair_completion_and_delivery"] = "PASS"
+                findings["lifecycle_features"]["repair_completion_and_delivery"] = "PASS (MOCK: no real cash or physical handover)"
 
                 # -----------------------------------------------------------------
                 # LIFECYCLE PHASE 8: PARTS ENQUIRY & PARTS PAYMENT LIFECYCLE
@@ -454,7 +525,7 @@ def run_lifecycle():
                 cust_page.click("button[type='submit']")
                 cust_page.wait_for_selector(".request-confirmation, .request-id", timeout=10000)
                 time.sleep(0.6)
-                cust_page.screenshot(path=str(SCREENSHOTS_DIR / "13_part_enquiry_submitted.png"))
+                cust_page.screenshot(path=str(SCREENSHOTS_DIR / "13_part_enquiry_submitted.png"), mask=[cust_page.locator(".private-link")])
                 
                 part_match = re.search(r"RLI-\d{6}-[A-F0-9]{16}", cust_page.locator("body").text_content())
                 assert part_match, "Parts enquiry reference not generated!"
@@ -465,34 +536,34 @@ def run_lifecycle():
                 # Staff quotes part enquiry
                 part_quote_res = page.evaluate(f"""async () => {{
                     const me = await (await fetch('/api/admin/me')).json();
-                    const res = await fetch('/api/part-inquiries/admin/inquiries/{part_ref}/respond', {{
-                        method: 'POST',
+                    const res = await fetch('/api/part-inquiries/admin/{part_ref}', {{
+                        method: 'PATCH',
                         headers: {{ 'Content-Type': 'application/json', 'x-csrf-token': me.csrf }},
                         body: JSON.stringify({{
-                            status: 'Quotation ready',
-                            availability: 'In stock',
-                            price_paise: 480000,
-                            delivery_paise: 15000,
-                            eta: '1-2 business days express dispatch',
-                            quote_note: 'OEM Tested Grade-A display assembly'
+                            status: 'quoted', availability: 'in_stock',
+                            price_rupees: 4800, delivery_rupees: 150,
+                            eta: '1–2 working days', quote_note: 'TEST ONLY: illustrative part grade',
+                            quote_valid_until: '2099-12-31'
                         }})
                     }});
-                    return res.json();
+                    return {{ http: res.status, data: await res.json() }};
                 }}""")
-                log(f"   Staff quoted parts enquiry: status = {part_quote_res.get('status')}")
+                assert part_quote_res.get('http') == 200 and part_quote_res.get('data',{}).get('status') == 'quoted', f"Part quotation failed: {part_quote_res}"
+                log("   Staff part quotation state verified")
 
                 # Customer navigates to quote view and accepts
                 cust_page.goto(f"{BASE_URL}/part-request/#{part_ref}:{part_access}", wait_until="domcontentloaded")
                 cust_page.wait_for_timeout(600)
                 part_accept_res = cust_page.evaluate(f"""async () => {{
-                    const res = await fetch('/api/part-inquiries/inquiries/{part_ref}/decision', {{
+                    const res = await fetch('/api/part-inquiries/decision', {{
                         method: 'POST',
-                        headers: {{ 'Content-Type': 'application/json', 'Authorization': 'Bearer {part_access}' }},
-                        body: JSON.stringify({{ decision: 'accept' }})
+                        headers: {{ 'Content-Type': 'application/json' }},
+                        body: JSON.stringify({{ ref: '{part_ref}', access: '{part_access}', decision: 'accept' }})
                     }});
-                    return res.json();
+                    return {{ http: res.status, data: await res.json() }};
                 }}""")
-                log(f"   Customer accepted parts quotation: decision = {part_accept_res.get('decision')}")
+                assert part_accept_res.get('http') == 200 and part_accept_res.get('data',{}).get('status') == 'accepted', f"Customer part quote not accepted: {part_accept_res}"
+                log("   Customer part quotation acceptance verified")
                 cust_page.reload()
                 cust_page.wait_for_timeout(600)
                 cust_page.screenshot(path=str(SCREENSHOTS_DIR / "14_part_quote_accepted.png"))
@@ -542,8 +613,10 @@ def run_lifecycle():
                     return res.json();
                 }}""")
                 log(f"   System monitoring report: {refund_check}")
-                findings["lifecycle_features"]["system_monitoring_and_ops"] = "PASS"
-                findings["lifecycle_features"]["live_razorpay_gateway"] = "BLOCKED (Requires active merchant banking credentials; test-mode simulated)"
+                findings["lifecycle_features"]["system_monitoring_and_ops"] = "PASS (monitor endpoint only)"
+                findings["lifecycle_features"]["parts_payment_completed"] = "NOT TESTED (only parts enquiry quote/acceptance was tested)"
+                findings["lifecycle_features"]["gateway_refund"] = "NOT TESTED"
+                findings["lifecycle_features"]["live_razorpay_gateway"] = "BLOCKED (No test merchant connection supplied; no real provider request executed)"
 
                 # Close contexts
                 customer_context.close()
