@@ -19,9 +19,9 @@ const CATALOG = {
   Xiaomi: ['Xiaomi 15 Ultra','Xiaomi 15','Xiaomi 14 Ultra','Xiaomi 14','Xiaomi 14 Civi','Xiaomi 13 Pro','Xiaomi 12 Pro','Mi 11X'],
   Redmi: ['Redmi Note 14 Pro+','Redmi Note 14 Pro','Redmi Note 14','Redmi Note 13 Pro+','Redmi Note 13 Pro','Redmi Note 13','Redmi Note 12 Pro','Redmi Note 12','Redmi Note 11','Redmi 13 5G','Redmi 12 5G','Redmi 14C','Redmi A3'],
   POCO: ['POCO F7 Pro','POCO F6','POCO F6 Pro','POCO X7 Pro','POCO X7','POCO X6 Pro','POCO X6','POCO X5 Pro','POCO M7 Pro','POCO M6 Pro','POCO C75','POCO C65'],
-  vivo: ['vivo X200 Pro','vivo X200','vivo X100 Pro','vivo X100','vivo V50','vivo V40 Pro','vivo V40','vivo V30 Pro','vivo V30','vivo T3 Pro','vivo T3','vivo Y300','vivo Y200','vivo Y28'],
+  Vivo: ['Vivo X200 Pro','Vivo X200','Vivo X100 Pro','Vivo X100','Vivo X90 Pro','Vivo X90','Vivo X80 Pro','Vivo X80','Vivo X70 Pro+','Vivo X60 Pro','Vivo V50','Vivo V40 Pro','Vivo V40','Vivo V40e','Vivo V30 Pro','Vivo V30','Vivo V30e','Vivo V29 Pro','Vivo V29','Vivo V29e','Vivo V27 Pro','Vivo V27','Vivo V25 Pro','Vivo V25','Vivo V23 Pro','Vivo V23 5G','Vivo V21 5G','Vivo V20','Vivo T3 Ultra','Vivo T3 Pro 5G','Vivo T3 5G','Vivo T3x 5G','Vivo T2 Pro 5G','Vivo T2 5G','Vivo T2x 5G','Vivo T1 5G','Vivo T1 Pro','Vivo T1x','Vivo Y300 5G','Vivo Y200 Pro 5G','Vivo Y200e 5G','Vivo Y200 5G','Vivo Y58 5G','Vivo Y56 5G','Vivo Y36','Vivo Y35','Vivo Y28 5G','Vivo Y27','Vivo Y22','Vivo Y21','Vivo Y20','Vivo Y18','Vivo Y17s','Vivo Y16','Vivo Y15','Vivo Y12'],
   OPPO: ['OPPO Find X8 Pro','OPPO Find X8','OPPO Reno13 Pro','OPPO Reno13','OPPO Reno12 Pro','OPPO Reno12','OPPO Reno11 Pro','OPPO Reno11','OPPO F27 Pro+','OPPO F27 Pro','OPPO A79','OPPO A59'],
-  realme: ['realme GT 7 Pro','realme GT 6','realme GT 6T','realme 14 Pro+','realme 14 Pro','realme 13 Pro+','realme 13 Pro','realme 12 Pro+','realme 12 Pro','realme P3 Pro','realme P2 Pro','realme Narzo 70 Pro','realme C67','realme C65'],
+  Realme: ['Realme GT 7 Pro','Realme GT 6','Realme GT 6T','Realme 14 Pro+','Realme 14 Pro','Realme 13 Pro+','Realme 13 Pro','Realme 12 Pro+','Realme 12 Pro','Realme P3 Pro','Realme P2 Pro','Realme Narzo 70 Pro','Realme C67','Realme C65'],
   Motorola: ['motorola edge 60 Pro','motorola edge 60 Fusion','motorola edge 50 Ultra','motorola edge 50 Pro','motorola edge 50 Fusion','motorola edge 40','moto g85','moto g64','moto g45','moto g35','moto g24','razr 50 Ultra','razr 50'],
   Google: ['Pixel 9 Pro XL','Pixel 9 Pro','Pixel 9','Pixel 9a','Pixel 8 Pro','Pixel 8','Pixel 8a','Pixel 7 Pro','Pixel 7','Pixel 7a','Pixel 6a'],
   Nothing: ['Phone (3)','Phone (3a) Pro','Phone (3a)','Phone (2a) Plus','Phone (2a)','Phone (2)','Phone (1)','CMF Phone 2 Pro','CMF Phone 1'],
@@ -50,8 +50,8 @@ const PRODUCT_SEED = [
  ['Charging Port Flex','OnePlus','OnePlus 12R','Charging Port','Compatible option',799,16,'port'],
  ['AMOLED Display Module','Redmi','Redmi Note 13 Pro','Display & Touch','Compatible option',2599,11,'display'],
  ['Back Panel Replacement','Apple','iPhone 14','Back Panel','Compatible option',1399,9,'panel'],
- ['Front Camera Module','realme','realme 12 Pro+','Camera','Compatible option',1199,7,'camera'],
- ['Battery Replacement Pack','vivo','vivo V30','Battery','Compatible option',1199,10,'battery'],
+ ['Front Camera Module','Realme','Realme 12 Pro+','Camera','Compatible option',1199,7,'camera'],
+ ['Battery Replacement Pack','Vivo','Vivo V30','Battery','Compatible option',1199,10,'battery'],
  ['Loudspeaker Module','OPPO','OPPO Reno11','Speaker & Audio','Compatible option',649,15,'speaker'],
  ['USB-C Charging Sub-board','POCO','POCO X6 Pro','Charging Port','Compatible option',849,7,'port'],
  ['LCD Display Assembly','Motorola','moto g85','Display & Touch','Compatible option',2399,6,'display'],
@@ -98,6 +98,7 @@ export function openDatabase(dir = process.env.DATA_DIR || (process.env.VERCEL ?
  }
  const bookingColumns=new Set(db.prepare('PRAGMA table_info(bookings)').all().map(c=>c.name));
  for(const [key,definition] of Object.entries({email:"TEXT NOT NULL DEFAULT ''",pin:"TEXT NOT NULL DEFAULT ''",slot:"TEXT NOT NULL DEFAULT ''",whatsapp:'INTEGER NOT NULL DEFAULT 0'}))if(!bookingColumns.has(key))db.exec(`ALTER TABLE bookings ADD COLUMN ${key} ${definition}`);
+ db.exec(`UPDATE devices SET brand='Vivo' WHERE brand COLLATE NOCASE = 'vivo'; UPDATE devices SET brand='Realme' WHERE brand COLLATE NOCASE = 'realme'; UPDATE products SET brand='Vivo' WHERE brand COLLATE NOCASE = 'vivo'; UPDATE products SET brand='Realme' WHERE brand COLLATE NOCASE = 'realme';`);
  seed(db); db.prepare("UPDATE settings SET value=? WHERE key='terms' AND value=?").run(DEFAULT_SETTINGS.terms,'Parts are confirmed for compatibility, stock, and final pricing before fulfillment. Repair quotations follow inspection. No payment is collected online.');return db;
 }
 function seed(db) {
