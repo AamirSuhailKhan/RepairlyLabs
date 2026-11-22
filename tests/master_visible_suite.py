@@ -403,20 +403,10 @@ def run_master_suite():
         log("8.1 Extended operations loaded.")
         page.screenshot(path=str(SCREENSHOTS_DIR / "j8_01_operations_en.png"))
 
-        # Language toggle
-        log("8.2 Testing Hindi language switch...")
-        hi_btn = page.locator("button#lang", has_text="हिन्दी")
-        if hi_btn.is_visible():
-            hi_btn.click()
-            time.sleep(0.6)
-            log("    Operations switched to Hindi.")
-            page.screenshot(path=str(SCREENSHOTS_DIR / "j8_02_operations_hi.png"))
-            copy_to_artifacts(SCREENSHOTS_DIR / "j8_02_operations_hi.png", "master_09_operations_hindi.png")
-            # Switch back
-            en_btn = page.locator("button#lang", has_text="English")
-            if en_btn.is_visible():
-                en_btn.click()
-                time.sleep(0.4)
+        # Language verification: 100% English enforcement
+        log("8.2 Verifying 100% English interface (no Hindi language toggle)...")
+        assert not page.locator("button#lang").is_visible(), "Language toggle should be removed"
+        page.screenshot(path=str(SCREENSHOTS_DIR / "j8_02_operations_en_clean.png"))
 
         findings["journeys"]["journey_8_operations"] = "PASS"
         log(">>> JOURNEY 8 PASS: Operations console & localization verified.")

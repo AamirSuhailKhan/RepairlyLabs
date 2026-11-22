@@ -587,19 +587,8 @@ def run_audit():
             admin_page.wait_for_selector("h1, .ops-grid")
             admin_page.screenshot(path=str(SCREENSHOTS_DIR / "j8_01_operations_console.png"))
 
-            log("8.2 Testing Operations Console Hindi Language Toggle...")
-            hi_btn = admin_page.locator("button#lang", has_text="हिन्दी")
-            if hi_btn.is_visible():
-                hi_btn.click()
-                admin_page.wait_for_timeout(400)
-                log("    Switched Operations to Hindi language.")
-                admin_page.screenshot(path=str(SCREENSHOTS_DIR / "j8_02_hindi_operations.png"))
-                # Switch back
-                en_btn = admin_page.locator("button#lang", has_text="English")
-                if en_btn.is_visible():
-                    en_btn.click()
-                    admin_page.wait_for_timeout(300)
-                    log("    Switched Operations back to English.")
+            log("8.2 Verifying Operations Console 100% English interface...")
+            assert not admin_page.locator("button#lang").is_visible(), "Language toggle should be removed"
 
             # Test Parts Payment Desk
             log("8.3 Opening Parts Payment Desk (/parts-payment/?admin=1)...")
