@@ -124,6 +124,77 @@ def run_lifecycle():
                     "RAZORPAY_KEY_ID": "", "RAZORPAY_KEY_SECRET": "",
                     "RAZORPAY_WEBHOOK_SECRET": "", "TWILIO_AUTH_TOKEN": ""})
 
+        # Machine-readable isolation verification pre-flight
+        real_data_dir = (ROOT / "data").resolve()
+        prod_db_path = (real_data_dir / "repairlylabs.sqlite").resolve()
+        test_dir_path = pathlib.Path(test_data_dir).resolve()
+        verification_path = ROOT / "test-results" / "isolation-verification.json"
+        verification_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        isolation_status = {
+            "verified": False,
+            "test_database_dir": str(test_dir_path),
+            "test_port": PORT,
+            "production_db_path": str(prod_db_path),
+            "paths_different": False,
+            "production_disabled": False,
+            "no_production_credentials_inherited": False,
+            "server_health_ok": False,
+            "desktop_name": current_windows_desktop_name(),
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "checks": {}
+        }
+
+        # Check 1: Test database directory is absolute and exists
+        c1 = test_dir_path.is_absolute() and test_dir_path.exists()
+        isolation_status["checks"]["test_db_path_absolute_and_exists"] = c1
+        if not c1:
+            with open(verification_path, "w", encoding="utf-8") as vf:
+                json.dump(isolation_status, vf, indent=2)
+            raise RuntimeError("CRITICAL ISOLATION FAILURE: Test DB path is not absolute or does not exist.")
+
+        # Check 2: Port must be 3005 and not 3001
+        c2 = (PORT == 3005) and (PORT != 3001)
+        isolation_status["checks"]["test_port_isolated_3005"] = c2
+        if not c2:
+            with open(verification_path, "w", encoding="utf-8") as vf:
+                json.dump(isolation_status, vf, indent=2)
+            raise RuntimeError("CRITICAL ISOLATION FAILURE: Test port must be 3005, never 3001.")
+
+        # Check 3: Production DB path inequality
+        c3 = (str(test_dir_path) != str(real_data_dir)) and \
+             (str(test_dir_path) not in str(prod_db_path)) and \
+             (not str(prod_db_path).startswith(str(test_dir_path)))
+        isolation_status["checks"]["production_db_path_inequality"] = c3
+        isolation_status["paths_different"] = c3
+        if not c3:
+            with open(verification_path, "w", encoding="utf-8") as vf:
+                json.dump(isolation_status, vf, indent=2)
+            raise RuntimeError("CRITICAL ISOLATION FAILURE: Test DB directory conflicts with production data directory.")
+
+        # Check 4: Production environment disabled
+        c4 = (env.get("NODE_ENV") == "test") and \
+             (env.get("REPAIRLYLABS_TEST") == "1") and \
+             (env.get("REPAIRLYLABS_IGNORE_DOTENV") == "1")
+        isolation_status["checks"]["production_environment_disabled"] = c4
+        isolation_status["production_disabled"] = c4
+        if not c4:
+            with open(verification_path, "w", encoding="utf-8") as vf:
+                json.dump(isolation_status, vf, indent=2)
+            raise RuntimeError("CRITICAL ISOLATION FAILURE: Test environment variables not strictly configured for test mode.")
+
+        # Check 5: No production credentials inherited
+        cred_keys = ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET",
+                     "TWILIO_AUTH_TOKEN", "RL_WA_TOKEN", "RL_RESEND_KEY", "RL_NOTIFY_URL",
+                     "NOTIFY_WEBHOOK_URL", "PUBLIC_ORIGIN"]
+        c5 = all(env.get(k) == "" for k in cred_keys)
+        isolation_status["checks"]["no_production_credentials_inherited"] = c5
+        isolation_status["no_production_credentials_inherited"] = c5
+        if not c5:
+            with open(verification_path, "w", encoding="utf-8") as vf:
+                json.dump(isolation_status, vf, indent=2)
+            raise RuntimeError("CRITICAL ISOLATION FAILURE: Live provider credentials detected in test process environment.")
+
         # Seed with the password in an isolated child environment rather than
         # exposing it as a command-line literal to process inspection/logs.
         seed_js = """
@@ -171,13 +242,22 @@ def run_lifecycle():
                 raise RuntimeError("Isolated test server unavailable or port 3005 in use. No live business port was contacted.")
         log(f"3. Isolated Node.js test server ready (PID: {server_proc.pid})")
 
+        # Check 6: Isolated test server health check confirmed
+        isolation_status["checks"]["isolated_server_health_ok"] = True
+        isolation_status["server_health_ok"] = True
+        isolation_status["verified"] = True
+        with open(verification_path, "w", encoding="utf-8") as vf:
+            json.dump(isolation_status, vf, indent=2)
+        log(f"ISOLATION_VERIFIED: All 6 safety checks passed. Test DB: {test_dir_path}, Port: {PORT}, Real DB: {prod_db_path} (PROTECTED)")
+
+        temp_browser_profile = tempfile.mkdtemp(prefix="repairly-chrome-profile-")
         try:
             with sync_playwright() as pw:
                 browser = pw.chromium.launch(
                     executable_path=CHROME_EXE if os.path.exists(CHROME_EXE) else None,
                     headless=False,
                     slow_mo=500,
-                    args=["--start-maximized", "--new-window"]
+                    args=["--start-maximized", "--new-window", f"--user-data-dir={temp_browser_profile}"]
                 )
                 
                 context = browser.new_context(
@@ -624,6 +704,7 @@ def run_lifecycle():
                 browser.close()
 
         finally:
+            shutil.rmtree(temp_browser_profile, ignore_errors=True)
             log("Shutting down isolated test server...")
             server_proc.terminate()
             server_proc.wait(timeout=5)
