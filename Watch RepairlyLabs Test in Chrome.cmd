@@ -94,6 +94,40 @@ if not exist "%~dp0test-results" mkdir "%~dp0test-results"
 if exist "%~dp0test-results\isolation-verification.json" del /q "%~dp0test-results\isolation-verification.json"
 
 echo [PRE-CHECK OK] Environment validated.
+echo.
+echo ==============================================================================
+echo   USER CONSENT ^& DESKTOP RECORDING GATE
+echo ==============================================================================
+echo This launcher will open a VISIBLE Google Chrome window on your active desktop,
+echo navigate through RepairlyLabs, test repairs, parts enquiries, and admin flows.
+echo.
+echo Test Isolation Safeguards:
+echo   - Runs on isolated port 3005 with a disposable temporary database.
+echo   - The production database (data\repairlylabs.sqlite) will NOT be touched.
+echo   - No real financial charges, SMS, or emails will be sent.
+echo.
+set /p "USER_CONSENT=Do you consent to run visible Chrome testing on this desktop? (Y/N, default Y): "
+if /i "%USER_CONSENT%"=="N" (
+  echo [ABORTED] User declined visible desktop test execution.
+  echo.
+  pause
+  exit /b 0
+)
+
+echo.
+where ffmpeg >nul 2>nul
+if errorlevel 1 (
+  echo [INFO] FFmpeg not found in PATH for automatic desktop MP4 recording.
+  echo [INFO] Playwright browser-context WebM video recording is automatically ENABLED.
+  echo [TIP]  To record your full physical monitor manually:
+  echo        Press Win + Alt + R (Windows Game Bar) before continuing.
+  echo.
+) else (
+  echo [INFO] FFmpeg detected. Screen recording can be captured to test-results\videos\desktop-screen\
+)
+echo Press any key to start the isolated test runner and launch Google Chrome...
+pause >nul
+echo.
 echo Starting isolated test runner on port 3005...
 echo.
 
