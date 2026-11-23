@@ -76,18 +76,13 @@ svg{display:inline-block;vertical-align:middle;flex-shrink:0}
   white-space:nowrap;text-decoration:none;
 }
 .logo-mark{
-  height:42px;width:42px;
-  display:inline-grid;place-items:center;
-  border-radius:13px;color:#0b1927;
-  background:var(--orange);font-weight:800;
-  position:relative;flex-shrink:0;
+  height:36px;width:36px;
+  display:inline-flex;align-items:center;justify-content:center;
+  background:transparent;position:relative;flex-shrink:0;
 }
-.logo-mark::after{
-  content:"";position:absolute;
-  width:9px;height:9px;
-  border:2px solid white;border-radius:50%;
-  right:-2px;top:-2px;background:var(--orange);
-}
+.brand-flower-emblem{width:100%;height:100%;object-fit:contain;display:block;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+.logo:hover .brand-flower-emblem{transform:rotate(15deg) scale(1.05)}
+@media(prefers-reduced-motion:reduce){.logo:hover .brand-flower-emblem{transform:none}}
 .logo em{font-style:normal;color:var(--orange)}
 
 /* ── Nav links ── */

@@ -4,7 +4,11 @@ body{background:var(--bg)}html{scroll-padding-top:100px}
 .site-header{background:#0b1e30;border-bottom:1px solid #ffffff25;box-shadow:0 9px 28px rgba(0,14,27,.18)}
 .top-links a{font-size:.82rem;white-space:nowrap}
 .top-links a:hover{color:#ffb299}
-.brand-icon{font-size:20px;background:linear-gradient(135deg,#ff8b6c,#f36547)}
+.brand{display:inline-flex;align-items:center;gap:11px;font-family:'Space Grotesk',sans-serif;font-size:1.48rem;font-weight:700;color:#fff;text-decoration:none}
+.brand .logo-mark{width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;background:transparent;position:relative}
+.brand .brand-flower-emblem{width:100%;height:100%;object-fit:contain;display:block;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+.brand:hover .brand-flower-emblem{transform:rotate(15deg) scale(1.05)}
+@media(prefers-reduced-motion:reduce){.brand:hover .brand-flower-emblem{transform:none}}
 .india-request-hero{background:radial-gradient(circle at 85% 20%,rgba(35,88,108,.38),transparent 42%),linear-gradient(128deg,#091724,#102c3d 65%,#152f3c);position:relative}
 .india-request-hero:before{content:'';position:absolute;top:-160px;right:-110px;width:560px;height:560px;border:1px solid #ffffff10;border-radius:50%;pointer-events:none}
 .india-request-hero .hero-inner{grid-template-columns:minmax(0,1.2fr) minmax(340px,.8fr);gap:clamp(40px,5vw,82px);padding:96px 0 105px}

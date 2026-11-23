@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="p-orange" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff9900"/>
+      <stop offset="100%" stop-color="#ff4400"/>
+    </linearGradient>
+    <linearGradient id="p-yellow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffea00"/>
+      <stop offset="100%" stop-color="#ff9900"/>
+    </linearGradient>
+    <linearGradient id="p-lime" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a6ff00"/>
+      <stop offset="100%" stop-color="#55cc00"/>
+    </linearGradient>
+    <linearGradient id="p-teal" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00e5a3"/>
+      <stop offset="100%" stop-color="#008899"/>
+    </linearGradient>
+    <linearGradient id="p-blue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00b4d8"/>
+      <stop offset="100%" stop-color="#0044cc"/>
+    </linearGradient>
+    <linearGradient id="p-royal" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4361ee"/>
+      <stop offset="100%" stop-color="#3a0ca3"/>
+    </linearGradient>
+    <linearGradient id="p-purple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7209b7"/>
+      <stop offset="100%" stop-color="#560bad"/>
+    </linearGradient>
+    <linearGradient id="p-magenta" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f72585"/>
+      <stop offset="100%" stop-color="#b5179e"/>
+    </linearGradient>
+    <linearGradient id="p-coral" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff5964"/>
+      <stop offset="100%" stop-color="#e01e37"/>
+    </linearGradient>
+  </defs>
+  <!-- Prismatic Spiral Flower 8-Petal Geometry -->
+  <g transform="translate(256, 256)">
+    <!-- 8 logarithmic spiral curved petals rotated by 45 degrees -->
+    <path d="M 0,0 C 40,-40 120,-70 170,-40 C 220,-10 240,70 190,130 C 140,180 60,160 20,90 Z" fill="url(#p-yellow)" transform="rotate(0)"/>
+    <path d="M 0,0 C 40,-40 120,-70 170,-40 C 220,-10 240,70 190,130 C 140,180 60,160 20,90 Z" fill="url(#p-lime)" transform="rotate(45)"/>
+    <path d="M 0,0 C 40,-40 120,-70 170,-40 C 220,-10 240,70 190,130 C 140,180 60,160 20,90 Z" fill="url(#p-teal)" transform="rotate(90)"/>
+    <path d="M 0,0 C 40,-40 120,-70 170,-40 C 220,-10 240,70 190,130 C 140,180 60,160 20,90 Z" fill="url(#p-blue)" transform="rotate(135)"/>
+    <path d="M 0,0 C 40,-40 120,-70 170,-40 C 220,-10 240,70 190,130 C 140,180 60,160 20,90 Z" fill="url(#p-royal)" transform="rotate(180)"/>
+    <path d="M 0,0 C 40,-40 120,-70 170,-40 C 220,-10 240,70 190,130 C 140,180 60,160 20,90 Z" fill="url(#p-purple)" transform="rotate(225)"/>
+    <path d="M 0,0 C 40,-40 120,-70 170,-40 C 220,-10 240,70 190,130 C 140,180 60,160 20,90 Z" fill="url(#p-magenta)" transform="rotate(270)"/>
+    <path d="M 0,0 C 40,-40 120,-70 170,-40 C 220,-10 240,70 190,130 C 140,180 60,160 20,90 Z" fill="url(#p-coral)" transform="rotate(315)"/>
+    <!-- Center spiral cavity -->
+    <circle cx="0" cy="0" r="24" fill="#08121f"/>
+  </g>
+</svg>

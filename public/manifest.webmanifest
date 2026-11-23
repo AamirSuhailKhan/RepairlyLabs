@@ -1,1 +1,29 @@
-{"name":"RepairlyLabs — Mobile Care","short_name":"RepairlyLabs","description":"Repair requests and team-verified mobile part enquiries across India","start_url":"/","display":"standalone","background_color":"#08121f","theme_color":"#08121f","icons":[{"src":"/assets/favicon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
+{
+  "name": "RepairlyLabs — Mobile Care",
+  "short_name": "RepairlyLabs",
+  "description": "Repair requests and team-verified mobile part enquiries across India",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#08121f",
+  "theme_color": "#08121f",
+  "icons": [
+    {
+      "src": "/assets/brand/repairlylabs-logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/brand/repairlylabs-logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/brand/repairlylabs-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
