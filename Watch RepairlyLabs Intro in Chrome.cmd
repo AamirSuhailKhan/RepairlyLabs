@@ -30,10 +30,10 @@ if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
 
 if defined CHROME_EXE (
   echo [INFO] Opening in Google Chrome: "%CHROME_EXE%"
-  start "" "%CHROME_EXE%" --new-window "http://localhost:3001/?intro=1"
+  start "" "%CHROME_EXE%" --new-window "http://localhost:3001/"
 ) else (
   echo [INFO] Opening default browser...
-  start "" "http://localhost:3001/?intro=1"
+  start "" "http://localhost:3001/"
 )
 
 echo.

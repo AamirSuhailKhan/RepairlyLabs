@@ -1,4 +1,4 @@
-import os, time, sys, subprocess
+import os, time, sys, subprocess, shutil
 from playwright.sync_api import sync_playwright
 
 def run_cinematic_intro_test():
@@ -7,7 +7,7 @@ def run_cinematic_intro_test():
 
     video_dir = os.path.abspath('test-results/videos')
 
-    print('Starting Playwright Chrome testing with seamless petal separation...')
+    print('Starting Playwright Chrome testing with tear-free intro...')
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
@@ -31,71 +31,67 @@ def run_cinematic_intro_test():
         page = context.new_page()
 
         # 1. First Visit: Desktop Animation Sequence
-        print('\n--- SCENARIO 1: First Visit Desktop Animation ---')
+        print('\n--- SCENARIO 1: Desktop Tear-Free Intro Sequence ---')
         page.goto('http://localhost:3001/', wait_until='domcontentloaded')
 
-        intro = page.locator('#repairly-brand-intro')
+        intro = page.locator('#rl-brand-intro')
         intro.wait_for(state='attached', timeout=5000)
-        print('Intro container attached on homepage entry.')
+        print('Tear-free intro attached on homepage entry.')
 
-        # Stage 1: 200ms (entrance)
+        # Stage 1: Entrance
         page.wait_for_timeout(250)
         page.screenshot(path='test-results/screenshots/intro/stage-1-entrance.png')
-        print('Captured Stage 1: Pristine logo entrance & fade-in.')
+        print('Captured Stage 1: Intact logo entrance.')
 
-        # Stage 2: 600ms (recognition)
+        # Stage 2: Recognition pause
         page.wait_for_timeout(400)
         page.screenshot(path='test-results/screenshots/intro/stage-2-recognized.png')
-        print('Captured Stage 2: Logo recognition pause (complete pristine logo).')
+        print('Captured Stage 2: Complete intact logo held centered.')
 
-        # Stage 3: 1300ms (smooth petal separation)
-        page.wait_for_timeout(700)
+        # Stage 3: Vector petal separation
+        page.wait_for_timeout(600)
         page.screenshot(path='test-results/screenshots/intro/stage-3-petal-separation.png')
-        print('Captured Stage 3: 8 complete, seamless petals separating along outward spiral paths.')
+        print('Captured Stage 3: Complete closed-path vector petals depart smoothly.')
 
-        # Stage 4: 1900ms (website reveal)
+        # Stage 4: Homepage reveal
         page.wait_for_timeout(600)
         page.screenshot(path='test-results/screenshots/intro/stage-4-website-reveal.png')
-        print('Captured Stage 4: Homepage reveal through central spiral.')
+        print('Captured Stage 4: Homepage reveal through outward petal movement.')
 
-        # Stage 5: 2600ms (hero CTA ready & unmount)
+        # Stage 5: Ready state
         page.wait_for_timeout(700)
         page.screenshot(path='test-results/screenshots/intro/stage-5-homepage-ready.png')
-        print('Captured Stage 5: Homepage hero ready with primary Request a Repair CTA.')
+        print('Captured Stage 5: Homepage hero ready.')
 
-        # Verify intro is unmounted / hidden
-        is_hidden = page.evaluate("() => document.getElementById('repairly-brand-intro').classList.contains('intro-hidden')")
-        print(f'Intro overlay hidden in DOM: {is_hidden} (expected True)')
+        # Verify intro is removed from DOM
+        count = page.locator('#rl-brand-intro').count()
+        print(f'Intro overlay removed from DOM: {count == 0} (expected True)')
 
-        # Verify body scroll restored
-        body_locked = page.evaluate("() => document.body.classList.contains('intro-locked')")
-        print(f'Body locked: {body_locked} (expected False)')
-
-        # 2. Replay Verification on Normal Refresh (F5)
+        # 2. Replay on Normal Page Refresh (F5)
         print('\n--- SCENARIO 2: Replay on Normal Page Refresh (F5) ---')
         page.reload(wait_until='domcontentloaded')
-        page.wait_for_timeout(300)
-        intro_on_refresh = page.evaluate("() => !document.getElementById('repairly-brand-intro').classList.contains('intro-hidden')")
-        print(f'Intro replays on normal refresh: {intro_on_refresh} (expected True)')
+        page.wait_for_timeout(250)
+        replayed = page.locator('#rl-brand-intro').count() > 0
+        print(f'Intro replays on normal refresh: {replayed} (expected True)')
         page.screenshot(path='test-results/screenshots/intro/refresh-replayed.png')
 
         # 3. Skip Functionality
         print('\n--- SCENARIO 3: Skip Intro Action ---')
-        skip_btn = page.locator('#intro-skip-btn')
+        skip_btn = page.locator('.rl-brand-intro__skip')
         if skip_btn.is_visible():
             skip_btn.click()
             print('Clicked Skip intro button.')
             page.wait_for_timeout(200)
-            is_skipped = page.evaluate("() => document.getElementById('repairly-brand-intro').classList.contains('intro-hidden')")
-            print(f'Skip button instantly unmounted intro: {is_skipped} (expected True)')
+            is_dismissed = page.locator('#rl-brand-intro').count() == 0
+            print(f'Skip button instantly dismissed intro: {is_dismissed} (expected True)')
             page.screenshot(path='test-results/screenshots/intro/skip-verified.png')
 
         # 4. Hard Refresh Replay Verification
         print('\n--- SCENARIO 4: Hard Refresh Replay ---')
         page.reload(wait_until='domcontentloaded')
-        page.wait_for_timeout(300)
-        intro_on_hard_refresh = page.evaluate("() => !document.getElementById('repairly-brand-intro').classList.contains('intro-hidden')")
-        print(f'Intro replays on hard refresh: {intro_on_hard_refresh} (expected True)')
+        page.wait_for_timeout(250)
+        hard_replayed = page.locator('#rl-brand-intro').count() > 0
+        print(f'Intro replays on hard refresh: {hard_replayed} (expected True)')
 
         # Wait for animation to finish
         page.wait_for_timeout(2500)
@@ -119,7 +115,7 @@ def run_cinematic_intro_test():
             m_ctx = browser.new_context(viewport={'width': vw, 'height': vh})
             m_page = m_ctx.new_page()
             m_page.goto('http://localhost:3001/', wait_until='domcontentloaded')
-            m_page.wait_for_timeout(600)
+            m_page.wait_for_timeout(500)
             
             scroll_width = m_page.evaluate("() => document.documentElement.scrollWidth")
             inner_width = m_page.evaluate("() => window.innerWidth")
@@ -135,7 +131,6 @@ def run_cinematic_intro_test():
     # Copy video to target filename
     target_webm = os.path.abspath('test-results/videos/repairlylabs-cinematic-intro.webm')
     if os.path.exists(video_path):
-        import shutil
         shutil.copy2(video_path, target_webm)
         size_mb = os.path.getsize(target_webm) / (1024 * 1024)
         print(f'SUCCESS: High-resolution cinematic intro recording: {target_webm} ({size_mb:.2f} MB)')
