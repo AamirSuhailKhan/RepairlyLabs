@@ -250,14 +250,14 @@ def run_lifecycle():
             json.dump(isolation_status, vf, indent=2)
         log(f"ISOLATION_VERIFIED: All 6 safety checks passed. Test DB: {test_dir_path}, Port: {PORT}, Real DB: {prod_db_path} (PROTECTED)")
 
-        temp_browser_profile = tempfile.mkdtemp(prefix="repairly-chrome-profile-")
         try:
             with sync_playwright() as pw:
+                # Playwright launch automatically isolates the session in a temporary browser profile
                 browser = pw.chromium.launch(
                     executable_path=CHROME_EXE if os.path.exists(CHROME_EXE) else None,
                     headless=False,
                     slow_mo=500,
-                    args=["--start-maximized", "--new-window", f"--user-data-dir={temp_browser_profile}"]
+                    args=["--start-maximized", "--new-window"]
                 )
                 
                 context = browser.new_context(
@@ -704,7 +704,6 @@ def run_lifecycle():
                 browser.close()
 
         finally:
-            shutil.rmtree(temp_browser_profile, ignore_errors=True)
             log("Shutting down isolated test server...")
             server_proc.terminate()
             server_proc.wait(timeout=5)
