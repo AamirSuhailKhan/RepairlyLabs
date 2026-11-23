@@ -21,20 +21,75 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/assets/brand/apple-touch-icon.png?v=prismatic2026" />
   <link rel="shortcut icon" href="/favicon.ico?v=prismatic2026" />
   <link rel="manifest" href="/manifest.webmanifest?v=prismatic2026" />
+  <link rel="preload" as="image" href="/assets/brand/intro/center-spiral.webp" type="image/webp" />
+  <link rel="preload" as="image" href="/assets/brand/intro/petal-01.webp" type="image/webp" />
+  <link rel="preload" as="image" href="/assets/brand/intro/petal-02.webp" type="image/webp" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/styles.css?v=prismatic2026" />
   <link rel="stylesheet" href="/india.css?v=prismatic2026" />
   <link rel="stylesheet" href="/premium.css?v=prismatic2026" />
+  <link rel="stylesheet" href="/brand-intro.css?v=prismatic2026" />
   <title>RepairlyLabs — Mobile Repairs First · Parts Across India</title>
   <script src="/booking-tools.js?v=indiaquote20261122" defer></script>
 </head>
 <body>
+  <!-- RepairlyLabs Cinematic Brand Intro Overlay -->
+  <div id="repairly-brand-intro" class="repairly-brand-intro" role="dialog" aria-label="Brand introduction" aria-modal="true">
+    <div class="intro-stage">
+      <div class="intro-flower-assembly" id="intro-flower">
+        <picture>
+          <source srcset="/assets/brand/intro/center-spiral.webp" type="image/webp" />
+          <img src="/assets/brand/intro/center-spiral.png" alt="" class="intro-petal intro-center-spiral" draggable="false" />
+        </picture>
+        <picture>
+          <source srcset="/assets/brand/intro/petal-01.webp" type="image/webp" />
+          <img src="/assets/brand/intro/petal-01.png" alt="" class="intro-petal petal-1" draggable="false" />
+        </picture>
+        <picture>
+          <source srcset="/assets/brand/intro/petal-02.webp" type="image/webp" />
+          <img src="/assets/brand/intro/petal-02.png" alt="" class="intro-petal petal-2" draggable="false" />
+        </picture>
+        <picture>
+          <source srcset="/assets/brand/intro/petal-03.webp" type="image/webp" />
+          <img src="/assets/brand/intro/petal-03.png" alt="" class="intro-petal petal-3" draggable="false" />
+        </picture>
+        <picture>
+          <source srcset="/assets/brand/intro/petal-04.webp" type="image/webp" />
+          <img src="/assets/brand/intro/petal-04.png" alt="" class="intro-petal petal-4" draggable="false" />
+        </picture>
+        <picture>
+          <source srcset="/assets/brand/intro/petal-05.webp" type="image/webp" />
+          <img src="/assets/brand/intro/petal-05.png" alt="" class="intro-petal petal-5" draggable="false" />
+        </picture>
+        <picture>
+          <source srcset="/assets/brand/intro/petal-06.webp" type="image/webp" />
+          <img src="/assets/brand/intro/petal-06.png" alt="" class="intro-petal petal-6" draggable="false" />
+        </picture>
+        <picture>
+          <source srcset="/assets/brand/intro/petal-07.webp" type="image/webp" />
+          <img src="/assets/brand/intro/petal-07.png" alt="" class="intro-petal petal-7" draggable="false" />
+        </picture>
+        <picture>
+          <source srcset="/assets/brand/intro/petal-08.webp" type="image/webp" />
+          <img src="/assets/brand/intro/petal-08.png" alt="" class="intro-petal petal-8" draggable="false" />
+        </picture>
+      </div>
+      <div class="intro-brand-title" id="intro-title" aria-hidden="true">
+        <span>Repairly</span><em>Labs</em>
+      </div>
+    </div>
+    <button type="button" class="intro-skip-btn" id="intro-skip-btn" aria-label="Skip introduction">
+      Skip intro <span aria-hidden="true">→</span>
+    </button>
+  </div>
+
   <div id="app"><div class="boot"><div class="boot-mark"><img src="/assets/brand/repairlylabs-logo-128.png" alt="RepairlyLabs" width="48" height="48" class="brand-flower-emblem" /></div><div class="boot-bar"></div></div></div>
   <div id="toast-root" aria-live="polite" aria-atomic="true"></div>
   <div id="dialog-root"></div>
   <script type="module" src="/app.js?v=20261122-repairfirst2"></script>
+  <script src="/brand-intro.js?v=prismatic2026" defer></script>
   <script src="/premium-motion.js?v=20261122-1" defer></script>
 </body>
 </html>
