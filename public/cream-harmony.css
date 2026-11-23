@@ -1,0 +1,159 @@
+/* RepairlyLabs Warm Atelier Palette — public customer pages only.
+   Loaded AFTER styles.css, india.css and premium.css.
+   Deliberately does not replace brand artwork or business logic. */
+:root {
+  --ink: #302820;
+  --ink2: #524336;
+  --dark: #fff4e9;
+  --dark2: #f9e8db;
+  --orange: #bd4d36;
+  --orange2: #eb8b63;
+  --cream: #fff8f2;
+  --bg: #fffaf6;
+  --slate: #766a60;
+  --line: #ebdfd3;
+  --shadow: 0 20px 48px rgba(104, 66, 44, .085);
+}
+html { background: #fffaf6; }
+body { background: #fffaf6; color: var(--ink); }
+::selection { background:#ffdec5; color:#352b23; }
+:where(a,button,input,select,textarea,summary):focus-visible { outline: 3px solid #b74630; outline-offset: 3px; }
+/* High-contrast primary actions on pale surfaces (AA contrast for small white text). */
+.btn-primary { background:#bd4d36 !important; color:#fff !important; box-shadow:0 11px 25px rgba(137,57,38,.13) !important; }
+.btn-primary:hover { background:#9d3525 !important; }
+.eyebrow { color:#a8432e; }
+/* Header: warm porcelain surface rather than a nearly-black band. */
+.navbar, .navbar.scrolled {
+  background: rgba(255,250,244,.97) !important;
+  border: 1px solid #ead5c5 !important;
+  box-shadow: 0 9px 34px rgba(87,55,38,.10) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.navbar .logo, .navbar .logo:visited { color: #332a24 !important; }
+.navbar .logo em { color: #c9543b; }
+.navbar .nav-links a { color: #6e6259 !important; }
+.navbar .nav-links a:hover, .navbar .nav-links a.active { color: #302820 !important; }
+.navbar .nav-links a.active:after { background: #df6347; }
+.navbar .nav-actions .btn.nav-book { background:#bd4d36 !important; color:#fff !important; box-shadow:0 9px 20px rgba(219,96,69,.18) !important; }
+.navbar .nav-actions .btn.nav-book:hover { background:#bc4732 !important; }
+.navbar .mobile-trigger { background:#fff0e4 !important; border-color:#ebc9b5 !important; color:#4e382e !important; }
+.navbar .mobile-trigger:hover { background:#ffe3d1 !important; }
+.mobile-nav { background:rgba(255,250,244,.99) !important; border-color:#eddbc9 !important; box-shadow:0 18px 40px rgba(71,44,31,.13) !important; }
+.mobile-nav a { color:#57463c !important; border-bottom-color:#eee0d2 !important; }
+.mobile-nav a:hover { color:#bb4d32 !important; }
+.mobile-nav .btn { color:#fff !important; }
+/* Main opening: soft cream, peach and subtle warmth; dark readable headline. */
+.hero {
+  color:#302820 !important;
+  background:
+    radial-gradient(ellipse 44% 53% at 87% 45%, rgba(249,192,151,.24), transparent 86%),
+    radial-gradient(circle at 7% 11%, rgba(255,236,217,.90), transparent 46%),
+    linear-gradient(118deg, #fffaf5 0%, #fff2e7 58%, #ffeddf 100%) !important;
+  border-bottom:1px solid #efdacc;
+}
+.hero:before { border-color:rgba(214,143,107,.11) !important; box-shadow:0 0 0 85px rgba(221,138,105,.035),0 0 0 195px rgba(229,169,133,.025) !important; }
+.hero:after { opacity:.09 !important; }
+.hero-grid { grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr); gap:clamp(20px,4.5vw,76px); }
+.hero h1 { color:#302820 !important; font-size:clamp(3.1rem,5.15vw,6.15rem); }
+.hero h1 .highlight,.hero .highlight { background:none !important; color:#cb6044 !important; -webkit-text-fill-color:currentColor !important; }
+.hero .lead { color:#665b54 !important; }
+.hero-badge { background:rgba(255,255,255,.72) !important; color:#795c4c !important; border:1px solid #edcdb8 !important; box-shadow:0 4px 17px rgba(136,83,54,.045); }
+.hero-badge .live-dot { background:#739883 !important; box-shadow:0 0 0 5px rgba(115,152,131,.10) !important; }
+.hero-proof { border-top-color:#e9d4c4 !important; }
+.hero .proof { color:#665d53 !important; }
+.hero .proof svg { color:#b85c45 !important; }
+.hero .btn-outline, .parts-landing-hero .btn-outline { background:#fffaf6 !important; border:1px solid #d7b8a4 !important; color:#49372d !important; }
+.hero .btn-outline:hover,.parts-landing-hero .btn-outline:hover { background:#fff1e5 !important; border-color:#d88b68 !important; }
+.hero .hero-editorial { max-width:100%; }
+.hero .hero-process-card { box-shadow:0 22px 65px rgba(125,82,56,.16) !important; border:1px solid #efdfd3 !important; transform:rotate(-.45deg); }
+.hero .editorial-orbit { border-color:rgba(198,126,95,.16) !important; }
+.hero .hero-editorial-note { background:#fffaf5 !important; border-color:#e5c7b5 !important; color:#795545 !important; box-shadow:0 12px 24px rgba(103,59,38,.09) !important; }
+.hero .hero-editorial-note svg { color:#b75c42 !important; }
+.hero-scroll { color:#8a7465; }
+/* Brand strip and repair cards. */
+.brand-strip { background:#ffeadb !important; border-top:1px solid #ead1be !important; color:#756050 !important; }
+.brand-strip .brand-note { color:#8f6d59 !important; }
+.brand-strip .brand-word { color:#795f4f !important; opacity:.80; }
+.services { background:#fffaf6 !important; }
+.service-card,.service-card.compact { background:#fffefb !important; border-color:#eddfd1 !important; color:#352e26 !important; box-shadow:0 5px 20px rgba(97,64,45,.045); }
+.service-card:hover,.service-card.compact:hover { background:#fff8ef !important; border-color:#e9a68c !important; box-shadow:0 16px 36px rgba(130,82,52,.10) !important; }
+.service-card h3,.service-card p { color:inherit; }
+.service-card p { color:#756b61 !important; }
+.service-card .service-icon { background:#fff0e8 !important; color:#d76748 !important; }
+.pricing-trust-section { background:#fff0e3 !important; border-color:#eedbcc !important; }
+/* Process: bright card-like section; keep inner progress graphic warm and readable. */
+.process { background:linear-gradient(160deg,#fff8f1,#ffefe1) !important; color:#302820 !important; }
+.process:before { border-color:rgba(197,117,82,.14) !important; box-shadow:0 0 0 80px rgba(211,136,99,.035),0 0 0 170px rgba(211,136,99,.025) !important; }
+.process h2,.process h3 { color:#312820 !important; }
+.process-side p,.process .step p { color:#71655a !important; }
+.process .step { border-bottom-color:#e5d1c0 !important; }
+.process .step-num { color:#ca5a3b !important; }
+.process .highlight { color:#ce6748 !important; background:none !important; -webkit-text-fill-color:currentColor !important; }
+.process .process-visual { background:linear-gradient(145deg,#fffcf7,#f6ddca) !important; border:1px solid #dfc4b2 !important; color:#4c382f !important; box-shadow:0 18px 42px rgba(114,77,54,.08) !important; }
+.process .dark-pill { background:#ffdfc6 !important; color:#774333 !important; }
+.process .visual-line { background:#e8c9b2 !important; }
+.process .visual-status { color:#4c382f !important; }
+.process .visual-status svg { color:#5e9a76; }
+/* Other public sections: pastel surfaces and controlled coral accents. */
+.belief { background:#fffdf8 !important; }
+.belief-art { background:radial-gradient(circle at 65% 50%,#ffd6c0,#f5b595 76%) !important; border:1px solid #f2c4ab !important; }
+.belief-art:after { border-color:rgba(255,255,255,.52) !important; }
+.india-parts-section { background:#fffdf9 !important; }
+.part-request-preview { border-color:#ecd9ca !important; }
+.india-confidence { background:#fff2e9 !important; border-color:#eed9c8 !important; }
+.faq { background:#fffaf5 !important; }
+.faq details[open] { background:#fff2e6 !important; }
+/* Secondary public routes, including Repair booking and Find a Part. */
+.page-hero,.parts-landing-hero {
+  color:#302820 !important;
+  background:radial-gradient(ellipse at 84% 29%,rgba(248,184,139,.30),transparent 52%),linear-gradient(125deg,#fffaf4,#ffe9d8) !important;
+  border-bottom:1px solid #e9d1c0;
+}
+.page-hero:after { border-color:rgba(205,126,91,.14) !important; box-shadow:0 0 0 80px rgba(211,137,103,.035),0 0 0 150px rgba(211,137,103,.02) !important; }
+.page-hero h1,.parts-landing-hero h1 { color:#352a22 !important; }
+.page-hero p,.parts-landing-hero p { color:#6f6055 !important; }
+.page-hero .breadcrumb { color:#8c6a59 !important; }
+.parts-landing-hero .highlight { background:none !important; color:#c9573c !important; -webkit-text-fill-color:currentColor !important; }
+.parts-landing-hero .parts-hero-assurance { color:#6e5c4e !important; border-top-color:#e7cdbb !important; }
+.parts-landing-hero .parts-hero-assurance svg { color:#b66348 !important; }
+.part-types-section { background:#fffcf8 !important; }
+/* Conversion section: warm terracotta instead of dark navy. */
+.cta-strip { background:linear-gradient(115deg,#d96649,#bd5038) !important; color:#fff !important; border-top:0 !important; }
+.cta-strip h2,.cta-strip p { color:#fff !important; }
+.cta-strip .eyebrow { color:#fff !important; }
+.cta-strip .btn-light { background:#fff9f2 !important; color:#9e422d !important; border:1px solid #fff9f2 !important; }
+.cta-strip .btn-light:hover { background:#ffecdc !important; color:#8e3829 !important; }
+.cta-strip .cta-secondary-link { color:#fff9f2 !important; }
+.cta-strip:before { border-color:rgba(255,255,255,.18) !important; box-shadow:none !important; }
+/* Footer: paper/cream, with a warm tinted callout instead of another dark block. */
+.footer,.footer.india-footer { background:#fff5eb !important; color:#5e5148 !important; border-top:1px solid #eddbca; }
+.footer .logo,.footer .logo:visited,.footer h4 { color:#352922 !important; }
+.footer .logo em { color:#c6513a !important; }
+.footer p,.footer-col span,.footer .footer-bottom { color:#766b61 !important; }
+.footer-col a,.footer-bottom a { color:#594a3f !important; }
+.footer-col a:hover,.footer-bottom a:hover { color:#c45338 !important; }
+.footer-bottom { border-top:1px solid #e6d5c5 !important; }
+.footer .dark-pill { background:#ffe0d1 !important; color:#7d4837 !important; }
+.footer .footer-callout { background:linear-gradient(125deg,#ffe7d5,#ffd7bf) !important; border:1px solid #efc4ab !important; box-shadow:none !important; }
+.footer-callout h2 { color:#412e25 !important; }
+.footer-callout .eyebrow { color:#b84e36 !important; }
+.footer-callout p { color:#695247 !important; }
+.footer-callout .footer-secondary-link { color:#a3432e !important; }
+.footer-callout .footer-secondary-link:hover { color:#7f2f22 !important; }
+/* Motion remains calm; preserve user's logo and intro animation untouched. */
+@media(max-width:980px) {
+  .hero-grid { grid-template-columns:minmax(0,1fr); }
+  .hero h1 { font-size:clamp(3rem,8vw,5.1rem); }
+  .hero .hero-process-card { transform:none; }
+}
+@media(max-width:600px) {
+  .hero h1 { font-size:clamp(2.7rem,12vw,3.75rem); }
+  .hero-badge { font-size:.65rem !important; letter-spacing:.025em !important; }
+  .navbar,.navbar.scrolled { background:#fffaf4 !important; }
+  .hero-copy { padding-top:75px !important; }
+  .hero .hero-editorial-note { right:4px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .hero .hero-process-card,.hero .hero-editorial-note { animation:none !important; }
+}

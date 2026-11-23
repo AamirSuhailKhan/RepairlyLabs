@@ -8,5 +8,7 @@ test-results/
 test-results/videos/
 test-results/traces/
 navbar-fix-backup-*/
+.repairly-theme-backups/
+__pycache__/
 *.zip
 

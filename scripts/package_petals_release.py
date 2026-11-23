@@ -29,6 +29,9 @@ def make_archives():
     patch_files = [
         'public/index.html',
         'public/styles.css',
+        'public/cream-harmony.css',
+        'public/part-request/index.html',
+        'public/part-request/cream-harmony.css',
         'public/smooth-brand-intro-boot.js',
         'public/smooth-brand-intro.css',
         'public/smooth-brand-intro.js',
@@ -36,6 +39,7 @@ def make_archives():
         'public/assets/brand/prismatic-spiral-transparent.png',
         'public/assets/brand/prismatic-spiral-original.webp',
         'Watch RepairlyLabs Intro in Chrome.cmd',
+        'Apply Warm Cream Theme.cmd',
         'tests/brand-intro.test.mjs',
         'tests/record_cinematic_intro.py',
         'public/brand-intro.css',

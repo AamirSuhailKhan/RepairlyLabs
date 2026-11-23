@@ -1,0 +1,30 @@
+/* RepairlyLabs Warm Atelier Palette — independent India-wide part enquiry page.
+   Load after part-request/india.css and premium-workspace.css. */
+:root { --coral:#bd4d36; --navy:#524035; --bg:#fffaf5; --ink:#342a23; --muted:#786b60; --line:#ecddcf; --premium-orange:#bd4d36; --premium-ink:#342a23; }
+body { background:#fffaf5 !important; color:#342a23; }
+.btn-primary { background:#bd4d36 !important; color:#fff !important; }
+.btn-primary:hover { background:#9d3525 !important; }
+.site-header { background:rgba(255,250,244,.98) !important; border-bottom:1px solid #e8d2c2 !important; box-shadow:0 9px 24px rgba(90,55,34,.09) !important; }
+.site-header .brand { color:#35291f !important; }
+.site-header .top-links a { color:#6b5a4f !important; }
+.site-header .top-links a:hover { color:#be4e36 !important; }
+.site-header .brand-icon { background:#ffe8d7; color:#bd5239; }
+.india-request-hero { color:#342a23 !important; background:radial-gradient(circle at 80% 15%,rgba(245,170,120,.26),transparent 44%),linear-gradient(125deg,#fff9f3,#ffead9) !important; border-bottom:1px solid #e9d1bf; }
+.india-request-hero:before { border-color:rgba(210,131,98,.15) !important; }
+.india-request-hero h1 { color:#35291f !important; }
+.india-request-hero h1 strong { color:#c95b40 !important; }
+.india-request-hero p { color:#685b50 !important; }
+.india-request-hero .eyebrow { color:#a94e39 !important; }
+.india-request-hero .trustline span { color:#73584a !important; border-color:#e9cfba !important; background:rgba(255,255,255,.64) !important; }
+.request-journey-preview { border-color:#e8d6c9 !important; box-shadow:0 20px 54px rgba(108,71,47,.12) !important; }
+.panel { border-color:#eaded1 !important; background:#fffefc !important; }
+.aside-card { background:linear-gradient(145deg,#fff2e7,#ffe5d3) !important; color:#44342b !important; border-color:#efcfb9 !important; box-shadow:0 16px 40px rgba(112,70,45,.09) !important; }
+.aside-card h3,.aside-card .mini-step b { color:#392b23 !important; }
+.aside-card .mini-step p { color:#756052 !important; }
+.aside-card .mini-number { background:#fffaf4 !important; color:#ba533c !important; border-color:#eaccb7 !important; }
+.aside-card .mini-step { border-color:#e9cfbe !important; }
+.site-footer { background:#fff0e5 !important; color:#725f53 !important; border-top:1px solid #ead9c7 !important; }
+.site-footer a { color:#7e5340 !important; }
+.site-footer a:hover { color:#ae4430 !important; }
+#status-check .panel,.side-note { background:#fff8f0; border-color:#ecdfd2; }
+@media(prefers-reduced-motion:reduce) { .request-journey-preview { transform:none !important; } }
