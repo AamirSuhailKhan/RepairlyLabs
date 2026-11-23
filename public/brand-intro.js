@@ -1,18 +1,18 @@
 /**
  * RepairlyLabs — Cinematic Prismatic Spiral Flower Opening & Website Reveal
  * 
- * Reusable motion module implementing the 5-stage authentic brand introduction:
- * - Stage A (0-450ms): Logo entrance & subtle scale
- * - Stage B (450-850ms): Logo recognition pause
- * - Stage C (850-1750ms): 8-petal logarithmic spiral separation
- * - Stage D (1400-2200ms): Seamless center reveal of underlying homepage hero
- * - Stage E (1900-2600ms): Hero CTA & navigation entrance, unmount overlay
+ * Replay on every page load & refresh.
+ * 5-Stage Seamless Brand Experience:
+ * - Stage 1 (0-450ms): Pristine logo entrance & scale
+ * - Stage 2 (450-900ms): Logo recognition pause
+ * - Stage 3 (900-1900ms): 8 complete, seamless petals separate along outward spiral paths
+ * - Stage 4 (1500-2400ms): Central portal reveals the underlying homepage hero
+ * - Stage 5 (2400-2800ms): Hero CTA & navigation ready, overlay unmounts
  */
 (function(window, document) {
   'use strict';
 
-  const STORAGE_KEY = 'repairly_intro_seen';
-  const TIMEOUT_FAILSAFE = 3500;
+  const TIMEOUT_FAILSAFE = 3200;
 
   class RepairlyBrandIntro {
     constructor() {
@@ -20,39 +20,20 @@
       this.skipBtn = null;
       this.timers = [];
       this.isDestroyed = false;
-      this.hasPlayed = false;
       this.init();
     }
 
     shouldPlay() {
-      // 1. Dev / test query parameter override (?intro=1 or ?replay=1)
-      try {
-        const params = new URLSearchParams(window.location.search);
-        if (params.get('intro') === '1' || params.get('replay') === '1') {
-          return true;
-        }
-      } catch (e) {}
-
-      // 2. Accessibility: prefers-reduced-motion bypasses animation
+      // 1. Accessibility: prefers-reduced-motion bypasses animation
       if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         return false;
       }
 
-      // 3. First-visit check per browser session
-      try {
-        if (sessionStorage.getItem(STORAGE_KEY) === 'true') {
-          return false;
-        }
-      } catch (e) {
-        // Fallback for private browsing with storage blocked: play once per page lifecycle
-        return !this.hasPlayed;
-      }
-
+      // 2. Plays on every fresh open and refresh (no sessionStorage blockage)
       return true;
     }
 
     init() {
-      // Check if intro element exists or should be rendered
       this.el = document.getElementById('repairly-brand-intro');
       if (!this.el) return;
 
@@ -69,7 +50,7 @@
     startIntro() {
       if (this.isDestroyed) return;
 
-      // Lock body scroll
+      // Lock body scroll during cinematic intro
       document.documentElement.classList.add('intro-locked');
       document.body.classList.add('intro-locked', 'intro-active');
 
@@ -97,16 +78,16 @@
       }, TIMEOUT_FAILSAFE);
 
       // ----------------------------------------------------
-      // Stage A (0 - 450ms): Entrance & scale
+      // Stage 1 (0 - 450ms): Entrance & scale
       // ----------------------------------------------------
       this.schedule(() => {
         if (this.el) {
           this.el.classList.add('stage-enter');
         }
-      }, 50);
+      }, 40);
 
       // ----------------------------------------------------
-      // Stage B (450 - 850ms): Recognition pause
+      // Stage 2 (450 - 900ms): Logo recognition pause
       // ----------------------------------------------------
       this.schedule(() => {
         if (this.el) {
@@ -116,30 +97,31 @@
       }, 450);
 
       // ----------------------------------------------------
-      // Stage C (850 - 1750ms): 8-petal separation
+      // Stage 3 (900 - 1900ms): 8-petal spiral separation
       // ----------------------------------------------------
       this.schedule(() => {
         if (this.el) {
+          this.el.classList.remove('stage-recognized');
           this.el.classList.add('stage-separating');
         }
-      }, 850);
+      }, 900);
 
       // ----------------------------------------------------
-      // Stage D (1400 - 2200ms): Website hero reveal
+      // Stage 4 (1500 - 2400ms): Website hero reveal
       // ----------------------------------------------------
       this.schedule(() => {
         if (this.el) {
           this.el.classList.add('stage-revealing', 'intro-fading');
         }
         document.body.classList.add('intro-revealing');
-      }, 1400);
+      }, 1500);
 
       // ----------------------------------------------------
-      // Stage E (2100 - 2500ms): Hero CTA focus & unmount
+      // Stage 5 (2400 - 2800ms): Hero CTA focus & unmount
       // ----------------------------------------------------
       this.schedule(() => {
         this.finish();
-      }, 2350);
+      }, 2500);
     }
 
     schedule(fn, delay) {
@@ -164,18 +146,12 @@
     finish() {
       if (this.isDestroyed) return;
       this.isDestroyed = true;
-      this.hasPlayed = true;
 
       this.clearTimers();
       if (this.keyHandler) {
         window.removeEventListener('keydown', this.keyHandler);
         this.keyHandler = null;
       }
-
-      // Mark session as seen
-      try {
-        sessionStorage.setItem(STORAGE_KEY, 'true');
-      } catch (e) {}
 
       // Unlock body & reveal hero
       document.documentElement.classList.remove('intro-locked');
@@ -201,9 +177,6 @@
     }
 
     replay() {
-      try {
-        sessionStorage.removeItem(STORAGE_KEY);
-      } catch (e) {}
       this.isDestroyed = false;
       if (this.el) {
         this.el.className = 'repairly-brand-intro';

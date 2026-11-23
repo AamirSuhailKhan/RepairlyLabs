@@ -7,6 +7,7 @@ describe('RepairlyBrandIntro Module & Integration Audit', () => {
   const indexHtml = fs.readFileSync(path.resolve('public/index.html'), 'utf8');
   const introCss = fs.readFileSync(path.resolve('public/brand-intro.css'), 'utf8');
   const introJs = fs.readFileSync(path.resolve('public/brand-intro.js'), 'utf8');
+  const stylesCss = fs.readFileSync(path.resolve('public/styles.css'), 'utf8');
 
   it('includes brand-intro.css stylesheet and brand-intro.js script in index.html', () => {
     assert.ok(indexHtml.includes('brand-intro.css'), 'Missing brand-intro.css link');
@@ -17,6 +18,12 @@ describe('RepairlyBrandIntro Module & Integration Audit', () => {
     assert.ok(indexHtml.includes('id="repairly-brand-intro"'), 'Missing #repairly-brand-intro container');
     assert.ok(indexHtml.includes('role="dialog"'), 'Missing role="dialog"');
     assert.ok(indexHtml.includes('aria-modal="true"'), 'Missing aria-modal="true"');
+  });
+
+  it('contains the pristine master logo layer for seamless Stage 1 & 2 presentation', () => {
+    assert.ok(indexHtml.includes('intro-master-wrap'), 'Missing intro-master-wrap');
+    assert.ok(indexHtml.includes('intro-logo-master'), 'Missing intro-logo-master');
+    assert.ok(indexHtml.includes('repairlylabs-logo-transparent.webp'), 'Missing master webp');
   });
 
   it('contains all 8 individual authentic petal layers and the center spiral void', () => {
@@ -31,9 +38,10 @@ describe('RepairlyBrandIntro Module & Integration Audit', () => {
     assert.ok(fs.existsSync(path.resolve('public/assets/brand/intro/center-spiral.webp')), 'Missing center-spiral.webp');
   });
 
-  it('contains an accessible skip button with proper aria-label', () => {
+  it('contains an accessible skip button with proper aria-label and Escape key support', () => {
     assert.ok(indexHtml.includes('id="intro-skip-btn"'), 'Missing #intro-skip-btn');
     assert.ok(indexHtml.includes('aria-label="Skip introduction"'), 'Missing aria-label on skip button');
+    assert.ok(introJs.includes("e.key === 'Escape'"), 'Missing Escape key handler');
   });
 
   it('implements 5-stage CSS keyframe animations for all petals', () => {
@@ -48,20 +56,22 @@ describe('RepairlyBrandIntro Module & Integration Audit', () => {
     assert.ok(introJs.includes('prefers-reduced-motion: reduce'), 'Missing prefers-reduced-motion in JS');
   });
 
-  it('includes session-scoped storage check so intro plays once per session', () => {
-    assert.ok(introJs.includes('sessionStorage.getItem'), 'Missing sessionStorage check');
-    assert.ok(introJs.includes('sessionStorage.setItem'), 'Missing sessionStorage setter');
-    assert.ok(introJs.includes('repairly_intro_seen'), 'Missing storage key');
-  });
-
-  it('supports developer query parameters (?intro=1, ?replay=1) and window.RepairlyBrandIntro.replay()', () => {
-    assert.ok(introJs.includes("params.get('intro') === '1'"), 'Missing ?intro=1 check');
-    assert.ok(introJs.includes("params.get('replay') === '1'"), 'Missing ?replay=1 check');
+  it('plays on every open and refresh without sessionStorage blocking', () => {
+    assert.ok(!introJs.includes('sessionStorage.getItem'), 'sessionStorage blocking should be removed per requirement');
     assert.ok(introJs.includes('replay()'), 'Missing replay method');
   });
 
-  it('has a 3500ms failsafe timer so user is never locked behind overlay', () => {
-    assert.ok(introJs.includes('TIMEOUT_FAILSAFE = 3500'), 'Missing 3500ms failsafe constant');
+  it('has a failsafe timer so user is never locked behind overlay', () => {
+    assert.ok(introJs.includes('TIMEOUT_FAILSAFE'), 'Missing failsafe constant');
     assert.ok(introJs.includes('this.failsafeTimer'), 'Missing failsafe timer implementation');
+  });
+
+  it('harmonizes global CSS design tokens with authentic logo palette', () => {
+    assert.ok(stylesCss.includes('--brand-coral:#fb3848'), 'Missing --brand-coral token');
+    assert.ok(stylesCss.includes('--brand-orange:#f8680f'), 'Missing --brand-orange token');
+    assert.ok(stylesCss.includes('--brand-purple:#610981'), 'Missing --brand-purple token');
+    assert.ok(stylesCss.includes('--brand-blue:#8a3ffb'), 'Missing --brand-blue token');
+    assert.ok(stylesCss.includes('--brand-cyan:#14a8e4'), 'Missing --brand-cyan token');
+    assert.ok(stylesCss.includes('--brand-emerald:#37ba92'), 'Missing --brand-emerald token');
   });
 });
