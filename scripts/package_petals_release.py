@@ -30,6 +30,7 @@ def make_archives():
         'public/index.html',
         'public/part-request/index.html',
         'public/styles.css',
+        'public/champagne-harmony.css',
         'public/dark-blue-only.css',
         'public/smooth-brand-intro-boot.js',
         'public/smooth-brand-intro.css',
@@ -37,13 +38,12 @@ def make_archives():
         'public/assets/brand/prismatic-spiral-transparent.webp',
         'public/assets/brand/prismatic-spiral-transparent.png',
         'public/assets/brand/prismatic-spiral-original.webp',
-        'scripts/apply-dark-blue-only.mjs',
-        'Apply Dark Blue Only.cmd',
-        'README-DARK-BLUE-ONLY.md',
+        'scripts/apply-champagne-theme.mjs',
+        'Apply Champagne Theme.cmd',
         'Watch RepairlyLabs Intro in Chrome.cmd',
         'tests/brand-intro.test.mjs',
         'tests/record_cinematic_intro.py',
-        'scripts/verify_dark_blue_only.py'
+        'scripts/verify_champagne_palette.py'
     ]
 
     print('Building patch ZIP...')
@@ -53,6 +53,23 @@ def make_archives():
                 zf.write(rel_path, rel_path)
 
     patch_mb = os.path.getsize(patch_zip) / (1024 * 1024)
+    print(f'Patch ZIP created: {patch_zip} ({patch_mb:.2f} MB)')
+
+    # Also build specific color patch ZIP
+    champagne_zip = os.path.join(artifacts_dir, 'RepairlyLabs-Warm-Blush-Champagne-Patch.zip')
+    champagne_files = [
+        'public/champagne-harmony.css',
+        'public/index.html',
+        'public/part-request/index.html',
+        'scripts/apply-champagne-theme.mjs',
+        'Apply Champagne Theme.cmd'
+    ]
+    with zipfile.ZipFile(champagne_zip, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for rel_path in champagne_files:
+            if os.path.exists(rel_path):
+                zf.write(rel_path, rel_path)
+    champagne_mb = os.path.getsize(champagne_zip) / (1024 * 1024)
+    print(f'Champagne Patch ZIP created: {champagne_zip} ({champagne_mb:.2f} MB)')
     print(f'Patch ZIP created: {patch_zip} ({patch_mb:.2f} MB)')
 
 if __name__ == '__main__':

@@ -1,0 +1,330 @@
+/* ==============================================================================
+   RepairlyLabs — Warm Blush Champagne Palette (2026-11-24)
+   Official approved background color direction matching reference artwork.
+   Replaces all previous dark-blue, brown, and warm-charcoal backgrounds.
+   Preserves: logo, animations, layout, orange buttons, cream & white cards.
+   ============================================================================== */
+
+:root {
+  /* Approved Warm Blush Champagne Palette Tokens */
+  --rl-champagne: #F5E8E1;
+  --rl-soft-blush: #F1E5DE;
+  --rl-rose-champagne: #F1E0DA;
+
+  --rl-on-champagne: #172B35;
+  --rl-on-champagne-muted: #526069;
+  --rl-champagne-border: #C7B5AB;
+
+  --rl-champagne-gradient: linear-gradient(
+    120deg,
+    #F5E8E1 0%,
+    #F1E5DE 50%,
+    #F1E0DA 100%
+  );
+}
+
+/* 1. Floating Navigation & Header (Warm Champagne Surface) */
+.navbar,
+.navbar.scrolled,
+.site-header {
+  background: rgba(241, 229, 222, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(199, 181, 171, 0.6) !important;
+  box-shadow: 0 10px 32px rgba(23, 43, 53, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+}
+
+.navbar .logo,
+.navbar .logo:visited,
+.site-header .brand {
+  color: var(--rl-on-champagne) !important;
+}
+
+.navbar .logo em,
+.site-header .brand .accent {
+  color: var(--orange) !important;
+}
+
+.navbar .nav-links a,
+.site-header .top-links a {
+  color: var(--rl-on-champagne-muted) !important;
+}
+
+.navbar .nav-links a:hover,
+.navbar .nav-links a.active,
+.site-header .top-links a:hover {
+  color: var(--rl-on-champagne) !important;
+}
+
+.navbar .nav-links a.active:after {
+  background: var(--orange) !important;
+}
+
+.navbar .nav-actions .btn.nav-book {
+  background: var(--orange) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 24px rgba(251, 56, 72, 0.28) !important;
+}
+
+.navbar .cart-trigger {
+  background: rgba(199, 181, 171, 0.25) !important;
+  border-color: rgba(199, 181, 171, 0.6) !important;
+  color: var(--rl-on-champagne) !important;
+}
+
+.navbar .cart-trigger:hover {
+  background: rgba(199, 181, 171, 0.4) !important;
+}
+
+.navbar .mobile-trigger {
+  background: rgba(199, 181, 171, 0.3) !important;
+  border-color: var(--rl-champagne-border) !important;
+  color: var(--rl-on-champagne) !important;
+}
+
+.mobile-nav {
+  background: rgba(241, 229, 222, 0.98) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1px solid var(--rl-champagne-border) !important;
+  box-shadow: 0 18px 45px rgba(23, 43, 53, 0.12) !important;
+}
+
+.mobile-nav a {
+  color: var(--rl-on-champagne) !important;
+  border-bottom: 1px solid rgba(199, 181, 171, 0.35) !important;
+}
+
+.mobile-nav a:hover {
+  color: var(--orange) !important;
+}
+
+/* 2. Homepage & Inner Hero (Warm Blush Champagne Gradient) */
+.hero,
+.page-hero {
+  background: var(--rl-champagne-gradient) !important;
+  border-bottom: 1px solid var(--rl-champagne-border) !important;
+  color: var(--rl-on-champagne) !important;
+}
+
+.hero:before {
+  border-color: rgba(199, 181, 171, 0.3) !important;
+  box-shadow: 0 0 0 85px rgba(241, 229, 222, 0.4), 0 0 0 195px rgba(245, 232, 225, 0.25) !important;
+}
+
+.hero:after {
+  opacity: 0.05 !important;
+}
+
+.hero h1 {
+  color: var(--rl-on-champagne) !important;
+}
+
+.hero h1 .highlight,
+.hero .highlight {
+  color: var(--orange) !important;
+  -webkit-text-fill-color: var(--orange) !important;
+  background: none !important;
+}
+
+.hero p,
+.hero .lead {
+  color: var(--rl-on-champagne-muted) !important;
+}
+
+.hero .eyebrow {
+  color: var(--orange) !important;
+}
+
+.hero-editorial-note {
+  background: var(--rl-champagne) !important;
+  border: 1px solid var(--rl-champagne-border) !important;
+  color: var(--rl-on-champagne) !important;
+}
+
+.hero-trust-item,
+.hero-rating {
+  color: var(--rl-on-champagne-muted) !important;
+}
+
+.hero-actions .btn-outline {
+  border: 1px solid rgba(23, 43, 53, 0.25) !important;
+  color: var(--rl-on-champagne) !important;
+  background: rgba(255, 255, 255, 0.45) !important;
+}
+
+.hero-actions .btn-outline:hover {
+  background: rgba(255, 255, 255, 0.75) !important;
+}
+
+/* 3. Parts Landing Hero & India Request Hero */
+.parts-landing-hero {
+  background: var(--rl-champagne-gradient) !important;
+  border-bottom: 1px solid var(--rl-champagne-border) !important;
+  color: var(--rl-on-champagne) !important;
+}
+
+.parts-landing-hero h1,
+.parts-landing-hero h2 {
+  color: var(--rl-on-champagne) !important;
+}
+
+.parts-landing-hero p {
+  color: var(--rl-on-champagne-muted) !important;
+}
+
+.india-request-hero {
+  background: var(--rl-champagne-gradient) !important;
+  border-bottom: 1px solid var(--rl-champagne-border) !important;
+  color: var(--rl-on-champagne) !important;
+}
+
+.india-request-hero h1,
+.india-request-hero h2 {
+  color: var(--rl-on-champagne) !important;
+}
+
+.india-request-hero p {
+  color: var(--rl-on-champagne-muted) !important;
+}
+
+/* 4. Brand Strip, Process Section & Callouts */
+.brand-strip {
+  background: var(--rl-champagne) !important;
+  color: var(--rl-on-champagne-muted) !important;
+  border-top: 1px solid rgba(199, 181, 171, 0.4) !important;
+  border-bottom: 1px solid rgba(199, 181, 171, 0.4) !important;
+}
+
+.process {
+  background: var(--rl-soft-blush) !important;
+  color: var(--rl-on-champagne) !important;
+  border-top: 1px solid var(--rl-champagne-border) !important;
+  border-bottom: 1px solid var(--rl-champagne-border) !important;
+}
+
+.process h2,
+.process h3,
+.process strong {
+  color: var(--rl-on-champagne) !important;
+}
+
+.process p,
+.process .muted {
+  color: var(--rl-on-champagne-muted) !important;
+}
+
+.process .step-num {
+  color: var(--orange) !important;
+}
+
+.process-visual {
+  background: linear-gradient(150deg, #F5E8E1, #F1E0DA) !important;
+  border: 1px solid var(--rl-champagne-border) !important;
+  box-shadow: 0 12px 35px rgba(23, 43, 53, 0.06) !important;
+}
+
+.belief-art {
+  background: radial-gradient(circle at 65% 50%, #F5E8E1, #F1E0DA 70%) !important;
+  border: 1px solid var(--rl-champagne-border) !important;
+}
+
+.aside-card {
+  background: var(--rl-champagne) !important;
+  border: 1px solid var(--rl-champagne-border) !important;
+  color: var(--rl-on-champagne) !important;
+}
+
+.aside-card p {
+  color: var(--rl-on-champagne-muted) !important;
+}
+
+/* 5. CTA Strip */
+.cta-strip {
+  background: var(--rl-champagne-gradient) !important;
+  border-top: 1px solid var(--rl-champagne-border) !important;
+  border-bottom: 1px solid var(--rl-champagne-border) !important;
+  color: var(--rl-on-champagne) !important;
+}
+
+.cta-strip h2 {
+  color: var(--rl-on-champagne) !important;
+}
+
+.cta-strip p {
+  color: var(--rl-on-champagne-muted) !important;
+}
+
+.cta-strip .btn-light {
+  background: var(--orange) !important;
+  color: #ffffff !important;
+  border-color: var(--orange) !important;
+  box-shadow: 0 8px 24px rgba(251, 56, 72, 0.28) !important;
+}
+
+.cta-strip .btn-light:hover {
+  background: #e95636 !important;
+}
+
+/* 6. Footer (Soft Blush Surface) */
+.site-footer,
+.india-footer {
+  background: var(--rl-soft-blush) !important;
+  border-top: 1px solid var(--rl-champagne-border) !important;
+  color: var(--rl-on-champagne-muted) !important;
+}
+
+.site-footer h3,
+.site-footer h4,
+.india-footer h3,
+.india-footer h4,
+.site-footer .brand,
+.india-footer .brand {
+  color: var(--rl-on-champagne) !important;
+}
+
+.site-footer p,
+.india-footer p,
+.site-footer small,
+.india-footer small {
+  color: var(--rl-on-champagne-muted) !important;
+}
+
+.site-footer a,
+.india-footer a {
+  color: var(--rl-on-champagne-muted) !important;
+}
+
+.site-footer a:hover,
+.india-footer a:hover {
+  color: var(--rl-on-champagne) !important;
+}
+
+.footer-callout {
+  background: var(--rl-champagne) !important;
+  border: 1px solid var(--rl-champagne-border) !important;
+  color: var(--rl-on-champagne) !important;
+}
+
+.footer-callout h2 {
+  color: var(--rl-on-champagne) !important;
+}
+
+.footer-callout p {
+  color: var(--rl-on-champagne-muted) !important;
+}
+
+/* 7. Preserved Brand Actions & Elements */
+/* Primary Orange Buttons remain untouched */
+.btn-primary {
+  background: var(--orange) !important;
+  color: #ffffff !important;
+}
+
+/* Service cards retain their clean white background, borders, and dark text */
+.service-card,
+.pricing-card,
+.trust-card {
+  background: #ffffff !important;
+  border: 1px solid var(--line) !important;
+}
