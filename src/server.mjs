@@ -302,7 +302,7 @@ function staticFile(req, res, url) {
         'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
         'Referrer-Policy': 'no-referrer'
     } : p.startsWith('/operations') ? {...headers,'Content-Security-Policy':headers['Content-Security-Policy'].replace("img-src 'self' data:","img-src 'self' data: https://*.razorpay.com https://*.razorpay.co.in")} : headers;
-    res.writeHead(200, { ...pageHeaders, ...(privatePage?{'X-Robots-Tag':'noindex, nofollow','Referrer-Policy':'no-referrer'}:{}), 'Content-Type': mime[ext] || 'application/octet-stream', 'Cache-Control': ['.html','.js','.css'].includes(ext) ? 'no-cache' : 'public, max-age=3600' }); if (req.method === 'HEAD') res.end(); else res.end(data);
+    res.writeHead(200, { ...pageHeaders, ...(privatePage?{'X-Robots-Tag':'noindex, nofollow','Referrer-Policy':'no-referrer'}:{}), 'Content-Type': mime[ext] || 'application/octet-stream', 'Cache-Control': 'no-cache, no-store, must-revalidate' }); if (req.method === 'HEAD') res.end(); else res.end(data);
 }
 export async function handleRequest(req, res) {
     const started=Date.now();if(process.env.RL_REQUEST_LOG==='1')res.once('finish',()=>{const raw=String(req.url||'').split('?')[0];const group=raw.startsWith('/api/')?'api/'+(raw.split('/')[2]||'other'):'page';const safe=/^(api\/[a-z-]{1,32}|page)$/.test(group)?group:'other';console.log(JSON.stringify({event:'http',group:safe,method:req.method,status:res.statusCode,ms:Date.now()-started}));});
