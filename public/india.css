@@ -35,7 +35,7 @@ body { background:#fff; }
 .preview-button{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:19px;background:#f96a47;color:#fff;border-radius:12px;min-height:50px;font-weight:800;font-size:.83rem}
 .preview-foot{text-align:center;padding:15px;color:#768994;letter-spacing:.08em;font-size:.63rem;background:#fcfcfd;border-top:1px solid #eff1f2;font-weight:800}
 /* Dedicated /parts landing: no product grid or pricing. */
-.parts-landing-hero{background:radial-gradient(ellipse at 85% 40%,#183c4f 0%,transparent 55%),linear-gradient(125deg,#071422,#112538);color:#fff;padding:176px 0 110px;overflow:hidden}
+.parts-landing-hero{background:radial-gradient(ellipse at 85% 40%,#4a3b34 0%,transparent 55%),linear-gradient(125deg,#292320,#352d29);color:#fff;padding:176px 0 110px;overflow:hidden}
 .parts-land-grid{display:grid;grid-template-columns:minmax(0,1.06fr) minmax(325px,.83fr);gap:clamp(40px,7vw,112px);align-items:center}
 .parts-landing-hero h1{font-size:clamp(3.1rem,5.8vw,6rem);line-height:1.06;letter-spacing:-.06em;margin-bottom:24px}
 .parts-landing-hero p{color:#becfd8;line-height:1.85;max-width:650px;font-size:1.08rem}
@@ -66,8 +66,8 @@ body { background:#fff; }
 .confidence-item h3{font-size:1.4rem;margin:25px 0 13px}
 .confidence-item p{color:#687986;font-size:.9rem;margin:0}
 /* Footer and navigation consistent with nationwide parts + location-dependent repairs. */
-.india-footer{background:#0c1c2a;color:#d4dfe5}
-.footer-callout{display:flex;align-items:center;justify-content:space-between;gap:24px;border:1px solid #ffffff2c;border-radius:23px;padding:34px 40px;margin:20px 0 60px;background:radial-gradient(circle at 10% 10%,#244050,#142637 74%)}
+.india-footer{background:#292320;color:#d4dfe5}
+.footer-callout{display:flex;align-items:center;justify-content:space-between;gap:24px;border:1px solid #ffffff2c;border-radius:23px;padding:34px 40px;margin:20px 0 60px;background:radial-gradient(circle at 10% 10%,#4a3b34,#292320 74%)}
 .footer-callout .eyebrow{color:#ff9879;margin-bottom:10px}.footer-callout h2{font-size:clamp(1.65rem,2.9vw,2.5rem);margin:0 0 8px;color:#fff}.footer-callout p{max-width:610px;color:#bdcdd6;margin:0;font-size:.9rem}.footer-callout .btn{flex-shrink:0}
 .india-footer .footer-top{padding-top:0}
 .india-footer .footer-top>div:first-child p{max-width:325px}
