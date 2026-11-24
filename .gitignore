@@ -8,5 +8,7 @@ test-results/
 test-results/videos/
 test-results/traces/
 navbar-fix-backup-*/
+.repairly-color-backups/
+__pycache__/
 *.zip
 

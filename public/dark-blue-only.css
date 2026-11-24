@@ -1,0 +1,86 @@
+/* RepairlyLabs — dark-background recolor ONLY (2026-11-24)
+   Intention: replace the dark BLUE background surfaces with a warm charcoal-
+   espresso palette that sits beside the ORIGINAL orange and cream accents.
+   No typography, geometry, button color, logo, layout, animation, or data changes.
+   Loaded LAST, after the existing public site stylesheets. */
+
+:root {
+  --rl-warm-charcoal: #352d29;
+  --rl-warm-charcoal-light: #4a3b34;
+  --rl-warm-charcoal-deep: #292320;
+}
+
+/* Main floating navigation and the independent parts-request header. */
+.navbar,
+.navbar.scrolled,
+.site-header {
+  background: var(--rl-warm-charcoal);
+}
+
+/* Compact navigation: recolor just its background, not any menu geometry. */
+.mobile-nav {
+  background: var(--rl-warm-charcoal);
+}
+
+/* The homepage and its inner-page hero continue using the SAME radial design. */
+.hero,
+.page-hero {
+  background: radial-gradient(ellipse at 74% 35%,
+    var(--rl-warm-charcoal-light) 0%,
+    var(--rl-warm-charcoal) 42%,
+    var(--rl-warm-charcoal-deep) 80%);
+}
+
+/* 'Find a part' landing hero in the homepage route. */
+.parts-landing-hero {
+  background: radial-gradient(ellipse at 85% 40%,
+    var(--rl-warm-charcoal-light) 0%,
+    transparent 55%),
+    linear-gradient(125deg,
+      var(--rl-warm-charcoal-deep),
+      var(--rl-warm-charcoal));
+}
+
+/* Dedicated /part-request/ page: identical layout, different background hues. */
+.india-request-hero {
+  background: radial-gradient(circle at 85% 20%,
+    rgba(132, 100, 79, .36), transparent 42%),
+    linear-gradient(128deg,
+      var(--rl-warm-charcoal-deep),
+      var(--rl-warm-charcoal) 65%,
+      var(--rl-warm-charcoal-light));
+}
+
+/* Existing dark content bands: only the blue background color changes. */
+.brand-strip,
+.process,
+.cta-strip,
+.india-footer,
+.site-footer {
+  background: var(--rl-warm-charcoal-deep);
+}
+
+/* Dark decorative or supporting panels. */
+.process-visual {
+  background: linear-gradient(150deg,
+    var(--rl-warm-charcoal-light),
+    var(--rl-warm-charcoal-deep));
+}
+.belief-art {
+  background: radial-gradient(circle at 65% 50%,
+    var(--rl-warm-charcoal-light),
+    var(--rl-warm-charcoal-deep) 70%);
+}
+.hero-editorial-note,
+.aside-card {
+  background: var(--rl-warm-charcoal-light);
+}
+.footer-callout {
+  background: radial-gradient(circle at 0% 0%,
+    var(--rl-warm-charcoal-light) 0%,
+    var(--rl-warm-charcoal) 70%);
+}
+
+/* Deliberately DO NOT change: text, buttons, coral/orange, light cards, white/
+   cream sections, original logo, gradients INSIDE logo, motion, nav dimensions,
+   customer forms, admin/operations/payments, or any business behavior. */

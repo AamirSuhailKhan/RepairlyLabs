@@ -28,19 +28,22 @@ def make_archives():
     # Integration patch files
     patch_files = [
         'public/index.html',
+        'public/part-request/index.html',
         'public/styles.css',
+        'public/dark-blue-only.css',
         'public/smooth-brand-intro-boot.js',
         'public/smooth-brand-intro.css',
         'public/smooth-brand-intro.js',
         'public/assets/brand/prismatic-spiral-transparent.webp',
         'public/assets/brand/prismatic-spiral-transparent.png',
         'public/assets/brand/prismatic-spiral-original.webp',
+        'scripts/apply-dark-blue-only.mjs',
+        'Apply Dark Blue Only.cmd',
+        'README-DARK-BLUE-ONLY.md',
         'Watch RepairlyLabs Intro in Chrome.cmd',
         'tests/brand-intro.test.mjs',
         'tests/record_cinematic_intro.py',
-        'public/brand-intro.css',
-        'public/brand-intro.js',
-        'scripts/reconstruct_complete_petals.py'
+        'scripts/verify_dark_blue_only.py'
     ]
 
     print('Building patch ZIP...')
