@@ -38,7 +38,7 @@ function bindHeroJourney(){
  const q=id=>wrap.querySelector('#'+id);
  const card=wrap.querySelector('.hero-process-card'), rows=[...wrap.querySelectorAll('[data-hero-step]')];
  const ico=q('hero-step-icon'),title=q('hero-step-title'),index=q('hero-step-index'),dynamic=q('hero-step-dynamic'),eyebrow=q('hero-step-eyebrow'),heading=q('hero-step-heading'),desc=q('hero-step-desc'),footer=q('hero-footer-text'),cta=q('hero-step-cta'),secondary=q('hero-secondary-cta'),note=q('hero-note-text'),bar=q('hero-progress-bar'),announcement=q('hero-step-announcement');
- const motion=window.matchMedia('(prefers-reduced-motion: reduce)'), life=new AbortController(), duration=4500;
+ const motion=window.matchMedia('(prefers-reduced-motion: reduce)'), life=new AbortController(), duration=2250;
  let active=0,elapsed=0,last=null,raf=0,animation=null;
  const on=(target,event,fn)=>target?.addEventListener(event,fn,{signal:life.signal});
  const paint=()=>{if(bar)bar.style.transform=`scaleX(${Math.min(elapsed/duration,1)})`;};
