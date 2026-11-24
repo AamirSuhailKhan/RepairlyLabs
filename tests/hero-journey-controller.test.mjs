@@ -19,12 +19,8 @@ function harness(reduced=false){
 }
 const idx=h=>h.ids['hero-step-index'].textContent;
 const progress=h=>h.ids['hero-progress-bar'].style.transform;
-test('hero journey cycles through services, pauses, and resumes without stale links',()=>{
- const h=harness();assert.equal(idx(h),'01 / 03');h.advance(6600);assert.equal(idx(h),'02 / 03');assert.equal(h.ids['hero-step-cta'].href,'/part-request/');h.advance(6600);assert.equal(idx(h),'03 / 03');assert.equal(h.ids['hero-step-cta'].href,'/track');assert.equal(h.ids['hero-secondary-cta'].href,'/part-request/#status-check');assert.equal(h.ids['hero-secondary-cta'].hidden,false);h.advance(6600);assert.equal(idx(h),'01 / 03');assert.equal(h.ids['hero-step-cta'].href,'/repairs#booking');assert.equal(h.ids['hero-secondary-cta'].hidden,true);
- h.wrap.emit('pointerenter',{pointerType:'mouse'});const before=progress(h);h.advance(10000);assert.equal(progress(h),before);h.wrap.emit('pointerleave',{pointerType:'mouse'});h.advance(500);assert.notEqual(progress(h),before);
- h.ids['hero-play-toggle'].emit('click');const paused=progress(h);h.advance(10000);assert.equal(progress(h),paused);h.ids['hero-play-toggle'].emit('click');h.advance(500);assert.notEqual(progress(h),paused);
- h.setKeyboard(true);const focused=progress(h);h.advance(10000);assert.equal(progress(h),focused);h.setKeyboard(false);h.advance(500);assert.notEqual(progress(h),focused);
+test('hero journey cycles through services automatically one by one without manual pause',()=>{
+ const h=harness();assert.equal(idx(h),'01 / 03');h.advance(4600);assert.equal(idx(h),'02 / 03');assert.equal(h.ids['hero-step-cta'].href,'/part-request/');h.advance(4600);assert.equal(idx(h),'03 / 03');assert.equal(h.ids['hero-step-cta'].href,'/track');assert.equal(h.ids['hero-secondary-cta'].href,'/part-request/#status-check');assert.equal(h.ids['hero-secondary-cta'].hidden,false);h.advance(4600);assert.equal(idx(h),'01 / 03');assert.equal(h.ids['hero-step-cta'].href,'/repairs#booking');assert.equal(h.ids['hero-secondary-cta'].hidden,true);
  h.doc.hidden=true;const hidden=progress(h);h.advance(10000);assert.equal(progress(h),hidden);h.doc.hidden=false;
- h.rows[2].emit('click');h.rows[0].emit('click');h.rows[1].emit('click');assert.equal(idx(h),'02 / 03');assert.equal(h.rows[1].attrs['aria-pressed'],'true');assert.equal(h.ids['hero-step-cta'].href,'/part-request/');h.ids['hero-step-index'].emit('click');assert.equal(idx(h),'03 / 03');h.leave();assert.ok(h.stopped());
+ h.rows[2].emit('click');assert.equal(idx(h),'03 / 03');h.advance(4600);assert.equal(idx(h),'01 / 03');h.leave();assert.ok(h.stopped());
 });
-test('reduced motion defaults to manual navigation',()=>{const h=harness(true);assert.equal(h.ids['hero-play-toggle'].attrs['aria-pressed'],'true');h.advance(20000);assert.equal(idx(h),'01 / 03');h.rows[2].emit('click');assert.equal(idx(h),'03 / 03');assert.equal(h.ids['hero-step-cta'].href,'/track');h.leave();});

@@ -37,30 +37,32 @@ function bindHeroJourney(){
  const wrap=document.getElementById('hero-editorial');if(!wrap)return;
  const q=id=>wrap.querySelector('#'+id);
  const card=wrap.querySelector('.hero-process-card'), rows=[...wrap.querySelectorAll('[data-hero-step]')];
- const ico=q('hero-step-icon'),title=q('hero-step-title'),index=q('hero-step-index'),dynamic=q('hero-step-dynamic'),eyebrow=q('hero-step-eyebrow'),heading=q('hero-step-heading'),desc=q('hero-step-desc'),footer=q('hero-footer-text'),cta=q('hero-step-cta'),secondary=q('hero-secondary-cta'),note=q('hero-note-text'),bar=q('hero-progress-bar'),toggle=q('hero-play-toggle'),announcement=q('hero-step-announcement');
- const motion=window.matchMedia('(prefers-reduced-motion: reduce)'), life=new AbortController(), duration=6500;
- let active=0,elapsed=0,last=null,raf=0,hover=false,visible=false,userPaused=motion.matches,holdUntil=0,animation=null;
- const on=(target,event,fn)=>target.addEventListener(event,fn,{signal:life.signal});
- const paint=()=>{bar.style.transform=`scaleX(${elapsed/duration})`;};
- function paintToggle(){toggle.textContent=userPaused?'▶ Play':'Ⅱ Pause';toggle.setAttribute('aria-label',userPaused?'Play automatic journey':'Pause automatic journey');toggle.setAttribute('aria-pressed',String(userPaused));}
+ const ico=q('hero-step-icon'),title=q('hero-step-title'),index=q('hero-step-index'),dynamic=q('hero-step-dynamic'),eyebrow=q('hero-step-eyebrow'),heading=q('hero-step-heading'),desc=q('hero-step-desc'),footer=q('hero-footer-text'),cta=q('hero-step-cta'),secondary=q('hero-secondary-cta'),note=q('hero-note-text'),bar=q('hero-progress-bar'),announcement=q('hero-step-announcement');
+ const motion=window.matchMedia('(prefers-reduced-motion: reduce)'), life=new AbortController(), duration=4500;
+ let active=0,elapsed=0,last=null,raf=0,animation=null;
+ const on=(target,event,fn)=>target?.addEventListener(event,fn,{signal:life.signal});
+ const paint=()=>{if(bar)bar.style.transform=`scaleX(${Math.min(elapsed/duration,1)})`;};
  function selectStep(next,manual=false,animate=true){
   active=(next+heroJourneySteps.length)%heroJourneySteps.length;
   const s=heroJourneySteps[active];animation?.cancel();
-  // Commit text, links and selected state together, before any animation.
-  ico.innerHTML=icon(s.icon,24);title.textContent=s.title;index.textContent=`0${active+1} / 03`;
-  eyebrow.textContent=s.eyebrow;heading.innerHTML=s.heading;desc.textContent=s.desc;
-  footer.textContent=s.footerText;cta.href=s.ctaHref;cta.toggleAttribute('data-link',s.ctaLink);cta.innerHTML=`${esc(s.ctaLabel)} ${icon('arrow',14)}`;
-  secondary.hidden=!s.secondaryHref;if(s.secondaryHref)secondary.href=s.secondaryHref;
-  note.textContent=s.note;
-  rows.forEach((btn,i)=>{const selected=i===active;btn.classList.toggle('is-active',selected);btn.setAttribute('aria-pressed',String(selected));btn.querySelector('.process-step-state').innerHTML=icon(selected?'arrow':'chev',18);});
-  if(manual){holdUntil=performance.now()+5000;announcement.textContent=`Showing ${s.title}, ${active+1} of 3.`;}
+  if(ico)ico.innerHTML=icon(s.icon,24);
+  if(title)title.textContent=s.title;
+  if(index)index.textContent=`0${active+1} / 03`;
+  if(eyebrow)eyebrow.textContent=s.eyebrow;
+  if(heading)heading.innerHTML=s.heading;
+  if(desc)desc.textContent=s.desc;
+  if(footer)footer.textContent=s.footerText;
+  if(cta){cta.href=s.ctaHref;cta.toggleAttribute('data-link',s.ctaLink);cta.innerHTML=`${esc(s.ctaLabel)} ${icon('arrow',14)}`;}
+  if(secondary){secondary.hidden=!s.secondaryHref;if(s.secondaryHref)secondary.href=s.secondaryHref;}
+  if(note)note.textContent=s.note;
+  rows.forEach((btn,i)=>{const selected=i===active;btn.classList.toggle('is-active',selected);btn.setAttribute('aria-pressed',String(selected));const st=btn.querySelector('.process-step-state');if(st)st.innerHTML=icon(selected?'arrow':'chev',18);});
+  if(manual&&announcement)announcement.textContent=`Showing ${s.title}, ${active+1} of 3.`;
   elapsed=0;last=null;paint();
-  if(animate&&!motion.matches&&dynamic.animate){animation=dynamic.animate([{opacity:0,transform:'translateY(7px)'},{opacity:1,transform:'translateY(0)'}],{duration:300,easing:'cubic-bezier(.22,.61,.36,1)'});}
+  if(animate&&!motion.matches&&dynamic?.animate){animation=dynamic.animate([{opacity:0,transform:'translateY(7px)'},{opacity:1,transform:'translateY(0)'}],{duration:300,easing:'cubic-bezier(.22,.61,.36,1)'});}
  }
  function tick(now){
   if(!wrap.isConnected){cleanup();return;}
-  const keyboardFocus=!!wrap.querySelector(':focus-visible');
-  const blocked=userPaused||hover||keyboardFocus||!visible||document.hidden||document.documentElement.classList.contains('rl-intro-armed')||now<holdUntil;
+  const blocked=document.hidden||document.documentElement.classList.contains('rl-intro-armed');
   if(blocked)last=null;
   else{if(last!==null)elapsed+=Math.min(now-last,100);last=now;if(elapsed>=duration)selectStep(active+1);else paint();}
   raf=requestAnimationFrame(tick);
@@ -70,15 +72,11 @@ function bindHeroJourney(){
  function cleanup(){cancelAnimationFrame(raf);observer?.disconnect();life.abort();animation?.cancel();}
  disposeHeroJourney=cleanup;
  rows.forEach(btn=>on(btn,'click',()=>selectStep(Number(btn.dataset.heroStep),true)));
- on(index,'click',()=>selectStep(active+1,true));
- on(toggle,'click',()=>{userPaused=!userPaused;holdUntil=0;last=null;paintToggle();});
- on(wrap,'pointerenter',e=>{if(e.pointerType==='mouse')hover=true;});
- on(wrap,'pointerleave',e=>{if(e.pointerType==='mouse')hover=false;});
+ if(index)on(index,'click',()=>selectStep(active+1,true));
  on(document,'visibilitychange',()=>{last=null;});
- on(motion,'change',e=>{userPaused=e.matches;last=null;if(e.matches)animation?.cancel();paintToggle();});
- selectStep(0,false,false);paintToggle();card.setAttribute('data-journey-ready','1');raf=requestAnimationFrame(tick);
+ selectStep(0,false,false);card.setAttribute('data-journey-ready','1');raf=requestAnimationFrame(tick);
 }
-function heroPhone(){const s=heroJourneySteps[0];return `<section class="hero-editorial" id="hero-editorial" aria-label="Explore RepairlyLabs services"><div class="editorial-orbit editorial-orbit-a" aria-hidden="true"></div><div class="editorial-orbit editorial-orbit-b" aria-hidden="true"></div><div class="hero-process-card"><div class="process-card-head"><div class="process-card-icon" id="hero-step-icon">${icon(s.icon,24)}</div><div class="process-card-label"><span class="process-card-kicker">YOUR REPAIRLYLABS JOURNEY</span><strong id="hero-step-title">${esc(s.title)}</strong></div><button type="button" class="process-card-index" id="hero-step-index" aria-label="Next journey step">01 / 03</button></div><div class="process-progress" aria-hidden="true"><span class="process-progress-bar" id="hero-progress-bar"></span></div><div class="process-card-body"><div class="process-dynamic" id="hero-step-dynamic"><div class="process-card-eyebrow" id="hero-step-eyebrow">${esc(s.eyebrow)}</div><h2 id="hero-step-heading">${s.heading}</h2><p id="hero-step-desc">${esc(s.desc)}</p></div><div class="process-steps-list" role="group" aria-label="Choose a service">${heroJourneySteps.map((step,i)=>`<button type="button" class="process-preview-line ${i===0?'is-active':''}" data-hero-step="${i}" aria-pressed="${i===0?'true':'false'}"><span>0${i+1}</span><div><b>${esc(step.rowTitle)}</b><small>${esc(step.rowSub)}</small></div><i class="process-step-state">${icon(i===0?'arrow':'chev',18)}</i></button>`).join('')}</div></div><div class="process-card-footer"><div class="process-footer-info"><span class="process-footer-meta" id="hero-footer-text">${esc(s.footerText)}</span><button type="button" id="hero-play-toggle" class="process-play-toggle" aria-label="Pause automatic journey">Pause</button></div><div class="process-card-actions"><a class="process-card-cta" id="hero-step-cta" href="${esc(s.ctaHref)}" data-link>${esc(s.ctaLabel)} ${icon('arrow',14)}</a><a class="process-secondary-cta" id="hero-secondary-cta" hidden href="/part-request/#status-check">Check a part quote</a></div></div><span class="process-sr-only" id="hero-step-announcement" role="status" aria-live="polite"></span></div><div class="hero-editorial-note">${icon('checkcircle',18)} <span id="hero-note-text">${esc(s.note)}</span></div></section>`;}
+function heroPhone(){const s=heroJourneySteps[0];return `<section class="hero-editorial" id="hero-editorial" aria-label="Explore RepairlyLabs services"><div class="editorial-orbit editorial-orbit-a" aria-hidden="true"></div><div class="editorial-orbit editorial-orbit-b" aria-hidden="true"></div><div class="hero-process-card"><div class="process-card-head"><div class="process-card-icon" id="hero-step-icon">${icon(s.icon,24)}</div><div class="process-card-label"><span class="process-card-kicker">YOUR REPAIRLYLABS JOURNEY</span><strong id="hero-step-title">${esc(s.title)}</strong></div><button type="button" class="process-card-index" id="hero-step-index" aria-label="Next journey step">01 / 03</button></div><div class="process-progress" aria-hidden="true"><span class="process-progress-bar" id="hero-progress-bar"></span></div><div class="process-card-body"><div class="process-dynamic" id="hero-step-dynamic"><div class="process-card-eyebrow" id="hero-step-eyebrow">${esc(s.eyebrow)}</div><h2 id="hero-step-heading">${s.heading}</h2><p id="hero-step-desc">${esc(s.desc)}</p></div><div class="process-steps-list" role="group" aria-label="Choose a service">${heroJourneySteps.map((step,i)=>`<button type="button" class="process-preview-line ${i===0?'is-active':''}" data-hero-step="${i}" aria-pressed="${i===0?'true':'false'}"><span>0${i+1}</span><div><b>${esc(step.rowTitle)}</b><small>${esc(step.rowSub)}</small></div><i class="process-step-state">${icon(i===0?'arrow':'chev',18)}</i></button>`).join('')}</div></div><div class="process-card-footer"><div class="process-footer-info"><span class="process-footer-meta" id="hero-footer-text">${esc(s.footerText)}</span></div><div class="process-card-actions"><a class="process-card-cta" id="hero-step-cta" href="${esc(s.ctaHref)}" data-link>${esc(s.ctaLabel)} ${icon('arrow',14)}</a><a class="process-secondary-cta" id="hero-secondary-cta" hidden href="/part-request/#status-check">Check a part quote</a></div></div><span class="process-sr-only" id="hero-step-announcement" role="status" aria-live="polite"></span></div><div class="hero-editorial-note">${icon('checkcircle',18)} <span id="hero-note-text">${esc(s.note)}</span></div></section>`;}
 function serviceCard(s,compact=false){return `<a href="/repairs?issue=${encodeURIComponent(s.slug)}#booking" data-link class="service-card ${compact?'compact':''} reveal"><span class="service-icon">${icon(s.icon,28)}</span><h3>${esc(s.title)}</h3><p>${esc(s.description)}</p><span class="mini-arrow">${icon('up',18)}</span></a>`;}
 const artIcons={display:'monitor',battery:'battery',port:'plug',panel:'layers',camera:'camera',speaker:'speaker',flex:'settings'};
 function productArt(p){const type=['battery','port','panel','camera','speaker','flex'].includes(p.image_kind)?p.image_kind:'display';return `<div class="product-art ${type}"><span class="product-badge">${p.sample?'Example price':'Part listing'}</span><div class="art-device">${icon(artIcons[type],58)}</div></div>`;}
