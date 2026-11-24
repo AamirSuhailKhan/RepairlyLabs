@@ -40,7 +40,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible,input:focus-visible,s
 .navbar .nav-actions .btn.nav-book{background:var(--orange)!important;box-shadow:0 7px 18px rgba(244,104,73,.21)!important;border:0}
 .navbar .nav-actions .btn.nav-book:hover{background:#ff7959!important}
 .navbar .logo-mark{box-shadow:none}
-.mobile-nav{box-shadow:0 24px 50px rgba(4,16,26,.28);border:1px solid #294b5d}
+.mobile-nav{box-shadow:0 24px 50px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);background:rgba(41,35,32,.98)!important}
 /* The hero has a visual purpose: a transparent quote journey, not a fake product. */
 .hero{padding-top:96px;min-height:700px;background:radial-gradient(ellipse at 74% 35%,#4a3b34 0%,#352d29 42%,#292320 80%);isolation:isolate}
 .hero:before{width:650px;height:650px;right:-20%;top:0;border-color:rgba(180,219,218,.06);box-shadow:0 0 0 100px #ffffff03,0 0 0 200px #ffffff02}
