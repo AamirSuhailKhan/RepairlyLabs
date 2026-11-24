@@ -4,8 +4,8 @@
   "description": "Repair requests and team-verified mobile part enquiries across India",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#08121f",
-  "theme_color": "#08121f",
+  "background_color": "#292320",
+  "theme_color": "#292320",
   "icons": [
     {
       "src": "/assets/brand/repairlylabs-logo-192.png",
