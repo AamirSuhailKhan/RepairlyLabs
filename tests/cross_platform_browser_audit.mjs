@@ -298,8 +298,19 @@ try {
   adminPage.on('dialog', (d) => d.accept());
   custPage.on('dialog', (d) => d.accept());
 
-  // 2A. Homepage -> Repair Booking
+  // 2A. Homepage interactive journey card -> Repair Booking
   await custPage.goto(BASE + '/', { waitUntil: 'networkidle' });
+  await custPage.waitForSelector('.hero-process-card[data-journey-ready="1"]');
+  assert.equal((await custPage.locator('#hero-step-index').innerText()).trim(), '01 / 03');
+  await custPage.click('[data-hero-step="1"]');
+  await custPage.waitForFunction(() => document.getElementById('hero-step-index')?.textContent?.trim() === '02 / 03');
+  assert.match(await custPage.locator('#hero-step-heading').innerText(), /Compare options/);
+  assert.equal(await custPage.locator('#hero-step-cta').getAttribute('href'), '/part-request/');
+  await custPage.click('[data-hero-step="2"]');
+  await custPage.waitForFunction(() => document.getElementById('hero-step-index')?.textContent?.trim() === '03 / 03');
+  assert.equal(await custPage.locator('#hero-step-cta').getAttribute('href'), '/track');
+  await custPage.click('#hero-step-index');
+  await custPage.waitForFunction(() => document.getElementById('hero-step-index')?.textContent?.trim() === '01 / 03');
   await custPage.screenshot({ path: join(WORKFLOW_DIR, '01-homepage.png') });
   await custPage.locator('a[href="/repairs#booking"]').first().click();
   await custPage.waitForSelector('#booking-form');

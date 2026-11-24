@@ -23,9 +23,88 @@ function logo(){const name=esc(biz().business_name||'RepairlyLabs');const styled
 const navItems=[['/','Home'],['/repairs','Repairs'],['/parts','Find a part'],['/track','Track request'],['/about','Our approach'],['/contact','Contact']];
 function header(path){return `<header class="navbar" id="navbar"><div class="container nav-shell">${logo()}<nav class="nav-links" aria-label="Primary">${navItems.map(([href,label])=>`<a href="${href}" data-link class="${path===href?'active':''}">${label}</a>`).join('')}</nav><div class="nav-actions"><a href="/repairs#booking" class="btn btn-primary btn-sm nav-book" data-link>Request a Repair ${icon('arrow',15)}</a><button type="button" class="mobile-trigger" aria-label="Toggle navigation" aria-controls="mobile-nav" aria-expanded="false" data-action="menu">${icon('menu',20)}</button></div></div><nav class="mobile-nav hide" id="mobile-nav">${navItems.map(([href,label])=>`<a href="${href}" data-link>${label}</a>`).join('')}<a href="/part-request/">Request a part quote</a><a href="/operations/" data-link>Customer history</a><a href="/part-request/?admin=1">Parts enquiry inbox</a><a href="/admin" data-link>Team login</a><a href="/repairs#booking" data-link class="btn btn-primary nav-mobile-cta">Request a Repair ${icon('arrow',15)}</a></nav></header>`;}
 function footer(){const s=biz();return `<footer class="footer india-footer"><div class="container"><div class="footer-callout"><div><span class="eyebrow">REPAIR SUPPORT COMES FIRST</span><h2>Need your phone working again?</h2><p>Describe the problem and your device. We’ll review the request and discuss the next steps. Nationwide parts enquiries are available separately.</p></div><div class="footer-callout-actions"><a href="/repairs#booking" data-link class="btn btn-primary">Request a Repair ${icon('arrow')}</a><a href="/part-request/" class="footer-secondary-link">Find a part ${icon('chev',17)}</a></div></div><div class="footer-top"><div>${logo()}<p>Mobile repair enquiries with clear next steps and customer-approved quotations. For spare parts, our team also accepts requests from across India.</p><span class="pill dark-pill">${icon('shield',14)} Repair-first · Parts enquiries across India</span></div><div><h4>Explore</h4><div class="footer-col"><a href="/repairs#booking" data-link>Request a repair</a><a href="/repairs" data-link>Explore repair services</a><a href="/track" data-link>Track a repair</a><a href="/part-request/">Request any mobile part</a><a href="/parts" data-link>How part sourcing works</a><a href="/about" data-link>Our approach</a></div></div><div><h4>Need support?</h4><div class="footer-col"><a href="/contact" data-link>Contact the team</a><a href="/part-request/">Check price &amp; availability</a><a href="/part-request/#status-check">Check your part quote</a><a href="/admin" data-link>Team sign in</a><a href="/privacy" data-link>Privacy</a><a href="/terms" data-link>Terms &amp; policies</a></div></div><div><h4>Business &amp; coverage</h4><div class="footer-col"><span>Part enquiries accepted across India. Availability, shipping options and charges are confirmed individually.</span>${s.address?`<span>Workshop: ${esc(s.address)}</span>`:''}${s.phone?`<a href="tel:+91${esc(s.phone.replace(/\D/g,'').slice(-10))}">${esc(s.phone)}</a>`:''}${s.email?`<a href="mailto:${esc(s.email)}">${esc(s.email)}</a>`:''}${s.hours?`<span>${esc(s.hours)}</span>`:''}<span>Repair collection and workshop visits depend on local service coverage.</span></div></div></div><div class="footer-bottom"><span>© ${new Date().getFullYear()} ${esc(s.business_name||'RepairlyLabs')}. Clear repairs. Confident decisions.</span><div class="foot-links"><a href="/contact" data-link>Contact</a><a href="/privacy" data-link>Privacy notice</a><a href="/terms" data-link>Terms &amp; policies</a></div></div></div></footer>`;}
-function frame(content,path='/'){document.title=(path==='/'?'Mobile Repair & Spare Parts':({'/repairs':'Book a Repair','/parts':'Spare Parts','/track':'Track Request','/about':'Our Approach','/contact':'Contact','/privacy':'Privacy Notice','/terms':'Terms & Policies'}[path]||'RepairlyLabs'))+' | '+(biz().business_name||'RepairlyLabs');app.innerHTML=header(path)+`<main id="main-content" tabindex="-1">${content}</main>`+footer();updateCartCount();bindReveal();updateNavbar();}
+function frame(content,path='/'){document.title=(path==='/'?'Mobile Repair & Spare Parts':({'/repairs':'Book a Repair','/parts':'Spare Parts','/track':'Track Request','/about':'Our Approach','/contact':'Contact','/privacy':'Privacy Notice','/terms':'Terms & Policies'}[path]||'RepairlyLabs'))+' | '+(biz().business_name||'RepairlyLabs');app.innerHTML=header(path)+`<main id="main-content" tabindex="-1">${content}</main>`+footer();updateCartCount();bindReveal();bindHeroJourney();updateNavbar();}
 function pageHero(parent,title,desc){return `<section class="page-hero"><div class="container"><div class="breadcrumb"><a href="/" data-link>Home</a> / <span>${esc(parent)}</span></div><h1>${title}</h1><p>${desc}</p></div></section>`;}
-function heroPhone(){return `<div class="hero-editorial" aria-label="How our request and quotation process works"><div class="editorial-orbit editorial-orbit-a" aria-hidden="true"></div><div class="editorial-orbit editorial-orbit-b" aria-hidden="true"></div><div class="hero-process-card"><div class="process-card-head"><div class="process-card-icon">${icon('repair',24)}</div><div><span class="process-card-kicker">REPAIR REQUEST JOURNEY</span><strong>Start with what went wrong.</strong></div><span class="process-card-index">01 / 03</span></div><div class="process-card-body"><div class="process-card-eyebrow">YOUR REPAIR. YOUR DECISION.</div><h2>A clear diagnosis.<br><span>A considered fix.</span></h2><p>Share your phone model and the symptoms. The team reviews your request and explains the available next steps before work is approved.</p><div class="process-preview-line"><span>01</span><div><b>Describe the problem</b><small>Phone model, symptoms and contact</small></div>${icon('checkcircle',19)}</div><div class="process-preview-line"><span>02</span><div><b>Review the diagnosis</b><small>Possible fixes, parts and costs</small></div>${icon('checkcircle',19)}</div><div class="process-preview-line"><span>03</span><div><b>Approve the quotation</b><small>Know the scope before repair begins</small></div>${icon('arrow',19)}</div></div><div class="process-card-footer">NO CHARGE TO SUBMIT A REQUEST <span>${icon('shield',16)} Private details</span></div></div><div class="hero-editorial-note">${icon('checkcircle',18)} <span>Clarity before commitment.</span></div></div>`;}
+const heroJourneySteps=[
+ {index:'01 / 03',icon:'repair',title:'Start with what went wrong.',eyebrow:'YOUR REPAIR. YOUR DECISION.',heading:'A clear diagnosis.<br><span>A considered fix.</span>',desc:'Share your phone model and the symptoms. The team reviews your request and explains available next steps before work is approved.',ctaLabel:'Request a repair',ctaHref:'/repairs#booking',ctaLink:true,note:'Clarity before commitment.',footerText:'NO CHARGE TO SUBMIT A REQUEST',rowTitle:'Describe the problem',rowSub:'Phone model, symptoms and contact'},
+ {index:'02 / 03',icon:'layers',title:'Inspection & part grade options.',eyebrow:'DIAGNOSIS · VERIFIED STOCK',heading:'Compare options.<br><span>Choose your grade.</span>',desc:'Our team inspects your device or checks part availability across India—explaining compatible vs OEM choices, warranty info and exact totals.',ctaLabel:'Request a part quote',ctaHref:'/part-request/',ctaLink:false,note:'Component grade explained upfront.',footerText:'WRITTEN BREAKDOWN BEFORE WORK',rowTitle:'Review the diagnosis',rowSub:'Possible fixes, parts and costs'},
+ {index:'03 / 03',icon:'shield',title:'Approve online & track progress.',eyebrow:'PRIVATE PORTAL · TRACKING',heading:'Your go-ahead.<br><span>Tracked end to end.</span>',desc:'Approve your written quotation securely, verify advance or UPI payments safely, and follow workshop progress anytime with your reference.',ctaLabel:'Track your request',ctaHref:'/track',ctaLink:true,note:'Full statement & warranty details.',footerText:'PRIVATE REFERENCE ACCESS',rowTitle:'Approve the quotation',rowSub:'Know the scope before repair begins'}
+];
+let heroJourneyTimer=0;
+function bindHeroJourney(){
+ clearInterval(heroJourneyTimer);heroJourneyTimer=0;
+ const wrap=document.getElementById('hero-editorial');if(!wrap)return;
+ let active=0,pausedUntil=0,hoverPaused=false,focusPaused=false;
+ const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+ const card=wrap.querySelector('.hero-process-card');
+ const icoEl=wrap.querySelector('#hero-step-icon');
+ const titleEl=wrap.querySelector('#hero-step-title');
+ const idxEl=wrap.querySelector('#hero-step-index');
+ const dynEl=wrap.querySelector('#hero-step-dynamic');
+ const eyebrowEl=wrap.querySelector('#hero-step-eyebrow');
+ const headEl=wrap.querySelector('#hero-step-heading');
+ const descEl=wrap.querySelector('#hero-step-desc');
+ const footerTextEl=wrap.querySelector('#hero-footer-text');
+ const ctaEl=wrap.querySelector('#hero-step-cta');
+ const noteTextEl=wrap.querySelector('#hero-note-text');
+ const barEl=wrap.querySelector('#hero-progress-bar');
+ const rows=[...wrap.querySelectorAll('[data-hero-step]')];
+ function restartBar(){
+  if(!barEl)return;
+  barEl.style.transition='none';
+  barEl.style.transform=`scaleX(${((active+1)/heroJourneySteps.length).toFixed(3)})`;
+ }
+ function applyStep(nextIdx,manual=false){
+  const idx=((nextIdx%heroJourneySteps.length)+heroJourneySteps.length)%heroJourneySteps.length;
+  active=idx;
+  if(manual)pausedUntil=Date.now()+9000;
+  const s=heroJourneySteps[idx];
+  if(dynEl&&!reducedMotion){dynEl.classList.add('is-swapping');}
+  setTimeout(()=>{
+   if(!wrap.isConnected)return;
+   if(icoEl)icoEl.innerHTML=icon(s.icon,24);
+   if(titleEl)titleEl.textContent=s.title;
+   if(idxEl)idxEl.textContent=s.index;
+   if(eyebrowEl)eyebrowEl.textContent=s.eyebrow;
+   if(headEl)headEl.innerHTML=s.heading;
+   if(descEl)descEl.textContent=s.desc;
+   if(footerTextEl)footerTextEl.textContent=s.footerText;
+   if(ctaEl){
+    ctaEl.href=s.ctaHref;
+    if(s.ctaLink)ctaEl.setAttribute('data-link','');
+    else ctaEl.removeAttribute('data-link');
+    ctaEl.innerHTML=`${esc(s.ctaLabel)} ${icon('arrow',14)}`;
+   }
+   if(noteTextEl)noteTextEl.textContent=s.note;
+   rows.forEach((btn,i)=>{
+    const isAct=i===idx,isDone=i<idx;
+    btn.classList.toggle('is-active',isAct);
+    btn.classList.toggle('is-done',isDone);
+    btn.setAttribute('aria-pressed',String(isAct));
+    const badge=btn.querySelector('.process-step-state');
+    if(badge)badge.innerHTML=icon(isAct?'arrow':'checkcircle',19);
+   });
+   restartBar();
+   if(dynEl)dynEl.classList.remove('is-swapping');
+  },reducedMotion?0:130);
+ }
+ rows.forEach(btn=>btn.addEventListener('click',()=>applyStep(Number(btn.dataset.heroStep),true)));
+ idxEl?.addEventListener('click',()=>applyStep(active+1,true));
+ wrap.addEventListener('mouseenter',()=>{hoverPaused=true;});
+ wrap.addEventListener('mouseleave',()=>{hoverPaused=false;});
+ wrap.addEventListener('focusin',()=>{focusPaused=true;});
+ wrap.addEventListener('focusout',e=>{if(!wrap.contains(e.relatedTarget))focusPaused=false;});
+ restartBar();
+ if(!reducedMotion){
+  heroJourneyTimer=setInterval(()=>{
+   if(!wrap.isConnected){clearInterval(heroJourneyTimer);heroJourneyTimer=0;return;}
+   if(document.hidden||hoverPaused||focusPaused||Date.now()<pausedUntil)return;
+   applyStep(active+1,false);
+  },4200);
+ }
+ card?.setAttribute('data-journey-ready','1');
+}
+function heroPhone(){const s=heroJourneySteps[0];return `<div class="hero-editorial" id="hero-editorial" aria-label="Interactive repair request journey"><div class="editorial-orbit editorial-orbit-a" aria-hidden="true"></div><div class="editorial-orbit editorial-orbit-b" aria-hidden="true"></div><div class="hero-process-card"><div class="process-card-head"><div class="process-card-icon" id="hero-step-icon">${icon(s.icon,24)}</div><div><span class="process-card-kicker">REPAIR REQUEST JOURNEY</span><strong id="hero-step-title">${esc(s.title)}</strong></div><button type="button" class="process-card-index" id="hero-step-index" aria-label="Next journey step">${esc(s.index)}</button></div><div class="process-progress" aria-hidden="true"><span class="process-progress-bar" id="hero-progress-bar"></span></div><div class="process-card-body"><div class="process-dynamic" id="hero-step-dynamic"><div class="process-card-eyebrow" id="hero-step-eyebrow">${esc(s.eyebrow)}</div><h2 id="hero-step-heading">${s.heading}</h2><p id="hero-step-desc">${esc(s.desc)}</p></div><div class="process-steps-list" role="group" aria-label="Journey steps">${heroJourneySteps.map((step,i)=>`<button type="button" class="process-preview-line ${i===0?'is-active':''}" data-hero-step="${i}" aria-pressed="${i===0?'true':'false'}"><span>0${i+1}</span><div><b>${esc(step.rowTitle)}</b><small>${esc(step.rowSub)}</small></div><i class="process-step-state">${icon(i===0?'arrow':'checkcircle',19)}</i></button>`).join('')}</div></div><div class="process-card-footer"><span class="process-footer-meta" id="hero-footer-text">${esc(s.footerText)}</span><a class="process-card-cta" id="hero-step-cta" href="${esc(s.ctaHref)}" ${s.ctaLink?'data-link':''}>${esc(s.ctaLabel)} ${icon('arrow',14)}</a></div></div><div class="hero-editorial-note">${icon('checkcircle',18)} <span id="hero-note-text">${esc(s.note)}</span></div></div>`;}
 function serviceCard(s,compact=false){return `<a href="/repairs?issue=${encodeURIComponent(s.slug)}#booking" data-link class="service-card ${compact?'compact':''} reveal"><span class="service-icon">${icon(s.icon,28)}</span><h3>${esc(s.title)}</h3><p>${esc(s.description)}</p><span class="mini-arrow">${icon('up',18)}</span></a>`;}
 const artIcons={display:'monitor',battery:'battery',port:'plug',panel:'layers',camera:'camera',speaker:'speaker',flex:'settings'};
 function productArt(p){const type=['battery','port','panel','camera','speaker','flex'].includes(p.image_kind)?p.image_kind:'display';return `<div class="product-art ${type}"><span class="product-badge">${p.sample?'Example price':'Part listing'}</span><div class="art-device">${icon(artIcons[type],58)}</div></div>`;}
