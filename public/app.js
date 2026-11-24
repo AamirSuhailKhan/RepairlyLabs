@@ -25,86 +25,60 @@ function header(path){return `<header class="navbar" id="navbar"><div class="con
 function footer(){const s=biz();return `<footer class="footer india-footer"><div class="container"><div class="footer-callout"><div><span class="eyebrow">REPAIR SUPPORT COMES FIRST</span><h2>Need your phone working again?</h2><p>Describe the problem and your device. We’ll review the request and discuss the next steps. Nationwide parts enquiries are available separately.</p></div><div class="footer-callout-actions"><a href="/repairs#booking" data-link class="btn btn-primary">Request a Repair ${icon('arrow')}</a><a href="/part-request/" class="footer-secondary-link">Find a part ${icon('chev',17)}</a></div></div><div class="footer-top"><div>${logo()}<p>Mobile repair enquiries with clear next steps and customer-approved quotations. For spare parts, our team also accepts requests from across India.</p><span class="pill dark-pill">${icon('shield',14)} Repair-first · Parts enquiries across India</span></div><div><h4>Explore</h4><div class="footer-col"><a href="/repairs#booking" data-link>Request a repair</a><a href="/repairs" data-link>Explore repair services</a><a href="/track" data-link>Track a repair</a><a href="/part-request/">Request any mobile part</a><a href="/parts" data-link>How part sourcing works</a><a href="/about" data-link>Our approach</a></div></div><div><h4>Need support?</h4><div class="footer-col"><a href="/contact" data-link>Contact the team</a><a href="/part-request/">Check price &amp; availability</a><a href="/part-request/#status-check">Check your part quote</a><a href="/admin" data-link>Team sign in</a><a href="/privacy" data-link>Privacy</a><a href="/terms" data-link>Terms &amp; policies</a></div></div><div><h4>Business &amp; coverage</h4><div class="footer-col"><span>Part enquiries accepted across India. Availability, shipping options and charges are confirmed individually.</span>${s.address?`<span>Workshop: ${esc(s.address)}</span>`:''}${s.phone?`<a href="tel:+91${esc(s.phone.replace(/\D/g,'').slice(-10))}">${esc(s.phone)}</a>`:''}${s.email?`<a href="mailto:${esc(s.email)}">${esc(s.email)}</a>`:''}${s.hours?`<span>${esc(s.hours)}</span>`:''}<span>Repair collection and workshop visits depend on local service coverage.</span></div></div></div><div class="footer-bottom"><span>© ${new Date().getFullYear()} ${esc(s.business_name||'RepairlyLabs')}. Clear repairs. Confident decisions.</span><div class="foot-links"><a href="/contact" data-link>Contact</a><a href="/privacy" data-link>Privacy notice</a><a href="/terms" data-link>Terms &amp; policies</a></div></div></div></footer>`;}
 function frame(content,path='/'){document.title=(path==='/'?'Mobile Repair & Spare Parts':({'/repairs':'Book a Repair','/parts':'Spare Parts','/track':'Track Request','/about':'Our Approach','/contact':'Contact','/privacy':'Privacy Notice','/terms':'Terms & Policies'}[path]||'RepairlyLabs'))+' | '+(biz().business_name||'RepairlyLabs');app.innerHTML=header(path)+`<main id="main-content" tabindex="-1">${content}</main>`+footer();updateCartCount();bindReveal();bindHeroJourney();updateNavbar();}
 function pageHero(parent,title,desc){return `<section class="page-hero"><div class="container"><div class="breadcrumb"><a href="/" data-link>Home</a> / <span>${esc(parent)}</span></div><h1>${title}</h1><p>${desc}</p></div></section>`;}
+// Independent service entry points, not a customer's live status.
 const heroJourneySteps=[
- {index:'01 / 03',icon:'repair',title:'Start with what went wrong.',eyebrow:'YOUR REPAIR. YOUR DECISION.',heading:'A clear diagnosis.<br><span>A considered fix.</span>',desc:'Share your phone model and the symptoms. The team reviews your request and explains available next steps before work is approved.',ctaLabel:'Request a repair',ctaHref:'/repairs#booking',ctaLink:true,note:'Clarity before commitment.',footerText:'NO CHARGE TO SUBMIT A REQUEST',rowTitle:'Describe the problem',rowSub:'Phone model, symptoms and contact'},
- {index:'02 / 03',icon:'layers',title:'Inspection & part grade options.',eyebrow:'DIAGNOSIS · VERIFIED STOCK',heading:'Compare options.<br><span>Choose your grade.</span>',desc:'Our team inspects your device or checks part availability across India—explaining compatible vs OEM choices, warranty info and exact totals.',ctaLabel:'Request a part quote',ctaHref:'/part-request/',ctaLink:false,note:'Component grade explained upfront.',footerText:'WRITTEN BREAKDOWN BEFORE WORK',rowTitle:'Review the diagnosis',rowSub:'Possible fixes, parts and costs'},
- {index:'03 / 03',icon:'shield',title:'Approve online & track progress.',eyebrow:'PRIVATE PORTAL · TRACKING',heading:'Your go-ahead.<br><span>Tracked end to end.</span>',desc:'Approve your written quotation securely, verify advance or UPI payments safely, and follow workshop progress anytime with your reference.',ctaLabel:'Track your request',ctaHref:'/track',ctaLink:true,note:'Full statement & warranty details.',footerText:'PRIVATE REFERENCE ACCESS',rowTitle:'Approve the quotation',rowSub:'Know the scope before repair begins'}
+ {icon:'repair',title:'Mobile repair',eyebrow:'01 · REPAIR YOUR PHONE',heading:'Tell us the issue.<br><span>We’ll review it.</span>',desc:'Share your phone model and symptoms. Our team reviews the request and explains repair options and estimated costs before you approve work.',ctaLabel:'Request a repair',ctaHref:'/repairs#booking',ctaLink:true,note:'Clarity before commitment.',footerText:'NO PAYMENT TO SUBMIT',rowTitle:'Request a repair',rowSub:'Device, problem & contact details'},
+ {icon:'layers',title:'Spare-parts enquiries',eyebrow:'02 · PARTS ACROSS INDIA',heading:'Need a part?<br><span>Ask for a quote.</span>',desc:'Tell us the exact model, required component and delivery PIN code. We check compatibility, availability and shipping before sharing a quote.',ctaLabel:'Request a part quote',ctaHref:'/part-request/',ctaLink:false,note:'Availability confirmed by our team.',footerText:'NO SAMPLE PRICES',rowTitle:'Find a spare part',rowSub:'Model, component & delivery PIN'},
+ {icon:'clipboard',title:'Existing requests',eyebrow:'03 · CHECK YOUR REQUEST',heading:'Already requested?<br><span>Check your status.</span>',desc:'Track a repair using your reference and matching mobile number. For a parts enquiry, use its reference and private access code.',ctaLabel:'Track a repair',ctaHref:'/track',ctaLink:true,secondaryHref:'/part-request/#status-check',note:'Keep your reference and private code safe.',footerText:'PRIVATE REQUEST ACCESS',rowTitle:'Track your request',rowSub:'Repair status or private parts quote'}
 ];
-let heroJourneyTimer=0;
+let disposeHeroJourney=()=>{};
 function bindHeroJourney(){
- clearInterval(heroJourneyTimer);heroJourneyTimer=0;
+ disposeHeroJourney();
  const wrap=document.getElementById('hero-editorial');if(!wrap)return;
- let active=0,pausedUntil=0,hoverPaused=false,focusPaused=false;
- const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
- const card=wrap.querySelector('.hero-process-card');
- const icoEl=wrap.querySelector('#hero-step-icon');
- const titleEl=wrap.querySelector('#hero-step-title');
- const idxEl=wrap.querySelector('#hero-step-index');
- const dynEl=wrap.querySelector('#hero-step-dynamic');
- const eyebrowEl=wrap.querySelector('#hero-step-eyebrow');
- const headEl=wrap.querySelector('#hero-step-heading');
- const descEl=wrap.querySelector('#hero-step-desc');
- const footerTextEl=wrap.querySelector('#hero-footer-text');
- const ctaEl=wrap.querySelector('#hero-step-cta');
- const noteTextEl=wrap.querySelector('#hero-note-text');
- const barEl=wrap.querySelector('#hero-progress-bar');
- const rows=[...wrap.querySelectorAll('[data-hero-step]')];
- function restartBar(){
-  if(!barEl)return;
-  barEl.style.transition='none';
-  barEl.style.transform=`scaleX(${((active+1)/heroJourneySteps.length).toFixed(3)})`;
+ const q=id=>wrap.querySelector('#'+id);
+ const card=wrap.querySelector('.hero-process-card'), rows=[...wrap.querySelectorAll('[data-hero-step]')];
+ const ico=q('hero-step-icon'),title=q('hero-step-title'),index=q('hero-step-index'),dynamic=q('hero-step-dynamic'),eyebrow=q('hero-step-eyebrow'),heading=q('hero-step-heading'),desc=q('hero-step-desc'),footer=q('hero-footer-text'),cta=q('hero-step-cta'),secondary=q('hero-secondary-cta'),note=q('hero-note-text'),bar=q('hero-progress-bar'),toggle=q('hero-play-toggle'),announcement=q('hero-step-announcement');
+ const motion=window.matchMedia('(prefers-reduced-motion: reduce)'), life=new AbortController(), duration=6500;
+ let active=0,elapsed=0,last=null,raf=0,hover=false,visible=false,userPaused=motion.matches,holdUntil=0,animation=null;
+ const on=(target,event,fn)=>target.addEventListener(event,fn,{signal:life.signal});
+ const paint=()=>{bar.style.transform=`scaleX(${elapsed/duration})`;};
+ function paintToggle(){toggle.textContent=userPaused?'▶ Play':'Ⅱ Pause';toggle.setAttribute('aria-label',userPaused?'Play automatic journey':'Pause automatic journey');toggle.setAttribute('aria-pressed',String(userPaused));}
+ function selectStep(next,manual=false,animate=true){
+  active=(next+heroJourneySteps.length)%heroJourneySteps.length;
+  const s=heroJourneySteps[active];animation?.cancel();
+  // Commit text, links and selected state together, before any animation.
+  ico.innerHTML=icon(s.icon,24);title.textContent=s.title;index.textContent=`0${active+1} / 03`;
+  eyebrow.textContent=s.eyebrow;heading.innerHTML=s.heading;desc.textContent=s.desc;
+  footer.textContent=s.footerText;cta.href=s.ctaHref;cta.toggleAttribute('data-link',s.ctaLink);cta.innerHTML=`${esc(s.ctaLabel)} ${icon('arrow',14)}`;
+  secondary.hidden=!s.secondaryHref;if(s.secondaryHref)secondary.href=s.secondaryHref;
+  note.textContent=s.note;
+  rows.forEach((btn,i)=>{const selected=i===active;btn.classList.toggle('is-active',selected);btn.setAttribute('aria-pressed',String(selected));btn.querySelector('.process-step-state').innerHTML=icon(selected?'arrow':'chev',18);});
+  if(manual){holdUntil=performance.now()+5000;announcement.textContent=`Showing ${s.title}, ${active+1} of 3.`;}
+  elapsed=0;last=null;paint();
+  if(animate&&!motion.matches&&dynamic.animate){animation=dynamic.animate([{opacity:0,transform:'translateY(7px)'},{opacity:1,transform:'translateY(0)'}],{duration:300,easing:'cubic-bezier(.22,.61,.36,1)'});}
  }
- function applyStep(nextIdx,manual=false){
-  const idx=((nextIdx%heroJourneySteps.length)+heroJourneySteps.length)%heroJourneySteps.length;
-  active=idx;
-  if(manual)pausedUntil=Date.now()+9000;
-  const s=heroJourneySteps[idx];
-  if(dynEl&&!reducedMotion){dynEl.classList.add('is-swapping');}
-  setTimeout(()=>{
-   if(!wrap.isConnected)return;
-   if(icoEl)icoEl.innerHTML=icon(s.icon,24);
-   if(titleEl)titleEl.textContent=s.title;
-   if(idxEl)idxEl.textContent=s.index;
-   if(eyebrowEl)eyebrowEl.textContent=s.eyebrow;
-   if(headEl)headEl.innerHTML=s.heading;
-   if(descEl)descEl.textContent=s.desc;
-   if(footerTextEl)footerTextEl.textContent=s.footerText;
-   if(ctaEl){
-    ctaEl.href=s.ctaHref;
-    if(s.ctaLink)ctaEl.setAttribute('data-link','');
-    else ctaEl.removeAttribute('data-link');
-    ctaEl.innerHTML=`${esc(s.ctaLabel)} ${icon('arrow',14)}`;
-   }
-   if(noteTextEl)noteTextEl.textContent=s.note;
-   rows.forEach((btn,i)=>{
-    const isAct=i===idx,isDone=i<idx;
-    btn.classList.toggle('is-active',isAct);
-    btn.classList.toggle('is-done',isDone);
-    btn.setAttribute('aria-pressed',String(isAct));
-    const badge=btn.querySelector('.process-step-state');
-    if(badge)badge.innerHTML=icon(isAct?'arrow':'checkcircle',19);
-   });
-   restartBar();
-   if(dynEl)dynEl.classList.remove('is-swapping');
-  },reducedMotion?0:130);
+ function tick(now){
+  if(!wrap.isConnected){cleanup();return;}
+  const keyboardFocus=!!wrap.querySelector(':focus-visible');
+  const blocked=userPaused||hover||keyboardFocus||!visible||document.hidden||document.documentElement.classList.contains('rl-intro-armed')||now<holdUntil;
+  if(blocked)last=null;
+  else{if(last!==null)elapsed+=Math.min(now-last,100);last=now;if(elapsed>=duration)selectStep(active+1);else paint();}
+  raf=requestAnimationFrame(tick);
  }
- rows.forEach(btn=>btn.addEventListener('click',()=>applyStep(Number(btn.dataset.heroStep),true)));
- idxEl?.addEventListener('click',()=>applyStep(active+1,true));
- wrap.addEventListener('mouseenter',()=>{hoverPaused=true;});
- wrap.addEventListener('mouseleave',()=>{hoverPaused=false;});
- wrap.addEventListener('focusin',()=>{focusPaused=true;});
- wrap.addEventListener('focusout',e=>{if(!wrap.contains(e.relatedTarget))focusPaused=false;});
- restartBar();
- if(!reducedMotion){
-  heroJourneyTimer=setInterval(()=>{
-   if(!wrap.isConnected){clearInterval(heroJourneyTimer);heroJourneyTimer=0;return;}
-   if(document.hidden||hoverPaused||focusPaused||Date.now()<pausedUntil)return;
-   applyStep(active+1,false);
-  },4200);
- }
- card?.setAttribute('data-journey-ready','1');
+ const observer='IntersectionObserver' in window?new IntersectionObserver(entries=>{visible=entries[0].isIntersecting&&entries[0].intersectionRatio>=.15;last=null;},{threshold:.15}):null;
+ if(observer)observer.observe(card);else visible=true;
+ function cleanup(){cancelAnimationFrame(raf);observer?.disconnect();life.abort();animation?.cancel();}
+ disposeHeroJourney=cleanup;
+ rows.forEach(btn=>on(btn,'click',()=>selectStep(Number(btn.dataset.heroStep),true)));
+ on(index,'click',()=>selectStep(active+1,true));
+ on(toggle,'click',()=>{userPaused=!userPaused;holdUntil=0;last=null;paintToggle();});
+ on(wrap,'pointerenter',e=>{if(e.pointerType==='mouse')hover=true;});
+ on(wrap,'pointerleave',e=>{if(e.pointerType==='mouse')hover=false;});
+ on(document,'visibilitychange',()=>{last=null;});
+ on(motion,'change',e=>{userPaused=e.matches;last=null;if(e.matches)animation?.cancel();paintToggle();});
+ selectStep(0,false,false);paintToggle();card.setAttribute('data-journey-ready','1');raf=requestAnimationFrame(tick);
 }
-function heroPhone(){const s=heroJourneySteps[0];return `<div class="hero-editorial" id="hero-editorial" aria-label="Interactive repair request journey"><div class="editorial-orbit editorial-orbit-a" aria-hidden="true"></div><div class="editorial-orbit editorial-orbit-b" aria-hidden="true"></div><div class="hero-process-card"><div class="process-card-head"><div class="process-card-icon" id="hero-step-icon">${icon(s.icon,24)}</div><div><span class="process-card-kicker">REPAIR REQUEST JOURNEY</span><strong id="hero-step-title">${esc(s.title)}</strong></div><button type="button" class="process-card-index" id="hero-step-index" aria-label="Next journey step">${esc(s.index)}</button></div><div class="process-progress" aria-hidden="true"><span class="process-progress-bar" id="hero-progress-bar"></span></div><div class="process-card-body"><div class="process-dynamic" id="hero-step-dynamic"><div class="process-card-eyebrow" id="hero-step-eyebrow">${esc(s.eyebrow)}</div><h2 id="hero-step-heading">${s.heading}</h2><p id="hero-step-desc">${esc(s.desc)}</p></div><div class="process-steps-list" role="group" aria-label="Journey steps">${heroJourneySteps.map((step,i)=>`<button type="button" class="process-preview-line ${i===0?'is-active':''}" data-hero-step="${i}" aria-pressed="${i===0?'true':'false'}"><span>0${i+1}</span><div><b>${esc(step.rowTitle)}</b><small>${esc(step.rowSub)}</small></div><i class="process-step-state">${icon(i===0?'arrow':'checkcircle',19)}</i></button>`).join('')}</div></div><div class="process-card-footer"><span class="process-footer-meta" id="hero-footer-text">${esc(s.footerText)}</span><a class="process-card-cta" id="hero-step-cta" href="${esc(s.ctaHref)}" ${s.ctaLink?'data-link':''}>${esc(s.ctaLabel)} ${icon('arrow',14)}</a></div></div><div class="hero-editorial-note">${icon('checkcircle',18)} <span id="hero-note-text">${esc(s.note)}</span></div></div>`;}
+function heroPhone(){const s=heroJourneySteps[0];return `<section class="hero-editorial" id="hero-editorial" aria-label="Explore RepairlyLabs services"><div class="editorial-orbit editorial-orbit-a" aria-hidden="true"></div><div class="editorial-orbit editorial-orbit-b" aria-hidden="true"></div><div class="hero-process-card"><div class="process-card-head"><div class="process-card-icon" id="hero-step-icon">${icon(s.icon,24)}</div><div class="process-card-label"><span class="process-card-kicker">YOUR REPAIRLYLABS JOURNEY</span><strong id="hero-step-title">${esc(s.title)}</strong></div><button type="button" class="process-card-index" id="hero-step-index" aria-label="Next journey step">01 / 03</button></div><div class="process-progress" aria-hidden="true"><span class="process-progress-bar" id="hero-progress-bar"></span></div><div class="process-card-body"><div class="process-dynamic" id="hero-step-dynamic"><div class="process-card-eyebrow" id="hero-step-eyebrow">${esc(s.eyebrow)}</div><h2 id="hero-step-heading">${s.heading}</h2><p id="hero-step-desc">${esc(s.desc)}</p></div><div class="process-steps-list" role="group" aria-label="Choose a service">${heroJourneySteps.map((step,i)=>`<button type="button" class="process-preview-line ${i===0?'is-active':''}" data-hero-step="${i}" aria-pressed="${i===0?'true':'false'}"><span>0${i+1}</span><div><b>${esc(step.rowTitle)}</b><small>${esc(step.rowSub)}</small></div><i class="process-step-state">${icon(i===0?'arrow':'chev',18)}</i></button>`).join('')}</div></div><div class="process-card-footer"><div class="process-footer-info"><span class="process-footer-meta" id="hero-footer-text">${esc(s.footerText)}</span><button type="button" id="hero-play-toggle" class="process-play-toggle" aria-label="Pause automatic journey">Pause</button></div><div class="process-card-actions"><a class="process-card-cta" id="hero-step-cta" href="${esc(s.ctaHref)}" data-link>${esc(s.ctaLabel)} ${icon('arrow',14)}</a><a class="process-secondary-cta" id="hero-secondary-cta" hidden href="/part-request/#status-check">Check a part quote</a></div></div><span class="process-sr-only" id="hero-step-announcement" role="status" aria-live="polite"></span></div><div class="hero-editorial-note">${icon('checkcircle',18)} <span id="hero-note-text">${esc(s.note)}</span></div></section>`;}
 function serviceCard(s,compact=false){return `<a href="/repairs?issue=${encodeURIComponent(s.slug)}#booking" data-link class="service-card ${compact?'compact':''} reveal"><span class="service-icon">${icon(s.icon,28)}</span><h3>${esc(s.title)}</h3><p>${esc(s.description)}</p><span class="mini-arrow">${icon('up',18)}</span></a>`;}
 const artIcons={display:'monitor',battery:'battery',port:'plug',panel:'layers',camera:'camera',speaker:'speaker',flex:'settings'};
 function productArt(p){const type=['battery','port','panel','camera','speaker','flex'].includes(p.image_kind)?p.image_kind:'display';return `<div class="product-art ${type}"><span class="product-badge">${p.sample?'Example price':'Part listing'}</span><div class="art-device">${icon(artIcons[type],58)}</div></div>`;}
@@ -185,7 +159,7 @@ function securityAdminView(accounts=[]){const team=accounts.filter(a=>a.role==='
 function productModal(id){const p=state.adminData?.items?.find(x=>x.id===id)||{};const isNew=!id;const fields=[['sku','Stock keeping unit *',p.sku||''],['name','Part title *',p.name||''],['brand','Brand *',p.brand||''],['model','Exact model / variant *',p.model||''],['grade','Part grade',p.grade||'Ask for details'],['price','Price in INR *',p.price??0,'number'],['stock','Available quantity *',p.stock??0,'number']];dialog(`<div class="dialog-head"><h3>${isNew?'Add a spare part':'Edit spare part'}</h3><button class="icon-btn" data-action="close">${icon('x')}</button></div><div class="dialog-body"><form data-form="admin-product" data-id="${id||''}"><div class="form-grid">${fields.map(([name,label,value,type='text'])=>`<div class="field"><label>${label}</label><input name="${name}" type="${type}" ${type==='number'?'min="0"':''} required value="${esc(value)}" maxlength="${type==='text'?150:undefined}"></div>`).join('')}<div class="field"><label>Part category</label><select name="category">${state.config.categories.map(c=>`<option ${p.category===c?'selected':''}>${esc(c)}</option>`).join('')}</select></div><div class="field"><label>Image illustration type</label><select name="image_kind">${['display','battery','port','panel','camera','speaker','flex'].map(c=>`<option value="${c}" ${p.image_kind===c?'selected':''}>${c}</option>`).join('')}</select></div><div class="field"><label>Listing visible?</label><select name="active"><option value="1" ${p.active!==false?'selected':''}>Visible</option><option value="0" ${p.active===false?'selected':''}>Hidden</option></select></div><div class="field"><label>Show on homepage?</label><select name="featured"><option value="0" ${!p.featured?'selected':''}>No</option><option value="1" ${p.featured?'selected':''}>Yes</option></select></div><div class="field"><label>Sample listing?</label><select name="sample"><option value="1" ${p.sample!==false?'selected':''}>Yes — indicative / demo</option><option value="0" ${p.sample===false?'selected':''}>No — verified live listing</option></select></div><div class="field span2"><label>Description and fit notes</label><textarea name="description" maxlength="900">${esc(p.description||'Exact device variant and compatibility must be verified before confirmation.')}</textarea></div></div><button class="btn btn-primary" type="submit">${icon('save',18)} Save part</button></form></div>`,'wide');}
 function serviceModal(id){const s=state.adminData?.find(x=>x.id===id)||{};dialog(`<div class="dialog-head"><h3>${id?'Edit repair service':'Add repair service'}</h3><button class="icon-btn" data-action="close">${icon('x')}</button></div><div class="dialog-body"><form data-form="admin-service"><input type="hidden" name="id" value="${id||''}"><div class="form-grid"><div class="field"><label>Slug</label><input name="slug" required value="${esc(s.slug||'')}" placeholder="speaker-repair"></div><div class="field"><label>Title</label><input name="title" required value="${esc(s.title||'')}"></div><div class="field"><label>Icon name</label><select name="icon">${['monitor-smartphone','battery-charging','plug-zap','droplets','camera','volume-2','settings-2','layers-3','wrench'].map(i=>`<option value="${i}" ${s.icon===i?'selected':''}>${i}</option>`).join('')}</select></div><div class="field"><label>Highlight label</label><input name="tag" value="${esc(s.tag||'')}"></div><div class="field"><label>Visible?</label><select name="active"><option value="1" ${s.active!==0?'selected':''}>Yes</option><option value="0" ${s.active===0?'selected':''}>No</option></select></div><div class="field"><label>Display order</label><input name="sort_order" type="number" min="0" value="${s.sort_order??9}"></div><div class="field span2"><label>Service description</label><textarea name="description" required maxlength="400">${esc(s.description||'')}</textarea></div></div><button class="btn btn-primary" type="submit">${icon('save',18)} Save service</button></form></div>`,'wide');}
 /* App actions and event delegation */
-async function route(){closeDialog();const path=location.pathname;window.scrollTo({top:0,behavior:'instant'});switch(path){case '/':home();break;case '/repairs':repairs();break;case '/parts':parts();break;case '/about':about();break;case '/contact':contact();break;case '/track':trackPage();break;case '/privacy':privacyPage();break;case '/terms':termsPage();break;case '/admin':await adminRoute();break;default:frame(`<div class="not-found"><div><h1>404</h1><h3>This page took a wrong turn.</h3><a class="btn btn-primary" href="/" data-link>Back to RepairlyLabs ${icon('arrow')}</a></div></div>`,path);}if(location.hash)setTimeout(()=>document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView({behavior:'smooth',block:'start'}),90);}
+async function route(){disposeHeroJourney();closeDialog();const path=location.pathname;window.scrollTo({top:0,behavior:'instant'});switch(path){case '/':home();break;case '/repairs':repairs();break;case '/parts':parts();break;case '/about':about();break;case '/contact':contact();break;case '/track':trackPage();break;case '/privacy':privacyPage();break;case '/terms':termsPage();break;case '/admin':await adminRoute();break;default:frame(`<div class="not-found"><div><h1>404</h1><h3>This page took a wrong turn.</h3><a class="btn btn-primary" href="/" data-link>Back to RepairlyLabs ${icon('arrow')}</a></div></div>`,path);}if(location.hash)setTimeout(()=>document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView({behavior:'smooth',block:'start'}),90);}
 function navigate(url){document.getElementById('mobile-nav')?.classList.add('hide');document.querySelector('.mobile-trigger')?.setAttribute('aria-expanded','false');const target=new URL(url,location.origin);if(target.origin!==location.origin){window.location.href=url;return;}history.pushState({},'',target.pathname+target.search+target.hash);route();if(target.hash){requestAnimationFrame(()=>{try{document.getElementById(decodeURIComponent(target.hash.slice(1)))?.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});}catch{}});}}
 function updateNavbar(){document.getElementById('navbar')?.classList.toggle('scrolled',scrollY>18);}
 function bindReveal(){if(!('IntersectionObserver'in window)){document.querySelectorAll('.reveal').forEach(n=>n.classList.add('visible'));return;}const ob=new IntersectionObserver(items=>{for(const e of items)if(e.isIntersecting){e.target.classList.add('visible');ob.unobserve(e.target);}},{threshold:.08,rootMargin:'0px 0px -25px 0px'});document.querySelectorAll('.reveal').forEach(el=>ob.observe(el));}
