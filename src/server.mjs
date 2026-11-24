@@ -1,13 +1,13 @@
-import { createHash } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
-import { isIP } from 'node:net';
+import { BlockList, isIP } from 'node:net';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { resolve, extname, join, dirname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDatabase, getSettings, verifyPassword, hashToken, randomToken, publicRef, CATEGORIES } from './data.mjs';
 import { createRepairCenter } from './repair-center.mjs';
 import { initAccess, profile, findAccount, recoverOwner, manageTeam, updateEmail, owner, recoveryValid, generateOfflineCodes } from './admin-access.mjs';
-import { seoOrigin,sitemap,catalogPage } from './seo.mjs';
+import { seoOrigin,sitemap,catalogPage,structuredData } from './seo.mjs';
 import { financialReport,ledgerCSV } from './finance.mjs';
 import { createEmailRecovery } from './email-recovery.mjs';
 import { createGatewayExtensions } from './gateway-extensions.mjs';
@@ -53,16 +53,51 @@ function bookingReplay(b,old){const token=createHash('sha256').update('repairly-
 function phoneNorm(v) { const n = String(v ?? '').replace(/[\s()+-]/g, '').replace(/^91(?=\d{10}$)/, ''); if (!/^[6-9]\d{9}$/.test(n)) err(400, 'Enter a valid 10-digit Indian mobile number.'); return n; }
 function integer(v, min, max, name) { const n = Number(v); if (!Number.isSafeInteger(n) || n < min || n > max) err(400, `Invalid ${name}.`); return n; }
 async function bodyJson(req) { const chunks = []; let size = 0; for await (const chunk of req) { size += chunk.length; if (size > (req.method==='POST' && req.url?.split('?')[0]==='/api/part-inquiries'?750000:/^\/api\/extended\/job\/[A-Z0-9-]+\/photos$/.test(req.url?.split('?')[0]||'')?750000:req.url?.split('?')[0]==='/api/repair-center/admin/qr-settings'?750000:/\/api\/repair-center\/job\/[A-Z0-9-]+\/qr-claim$/.test(req.url?.split('?')[0]||'')?750000:/^\/api\/parts-payment\/order\/[A-Z0-9-]+\/claim$/.test(req.url?.split('?')[0]||'')?750000:90000)) err(413, 'Request too large.'); chunks.push(chunk); } const all = Buffer.concat(chunks).toString('utf8'); try { const data = JSON.parse(all || '{}'); if (!data || typeof data !== 'object' || Array.isArray(data)) throw 0; return data; } catch { err(400, 'Invalid JSON.'); } }
-function trustedProxy(req) { return Boolean(process.env.VERCEL || (IS_PREVIEW && process.env.K_SERVICE) || (process.env.TRUST_PROXY === '1' && ['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress))); }
-function isHttpsRequest(req) { return Boolean(req.socket.encrypted || (trustedProxy(req) && req.headers['x-forwarded-proto'] === 'https')); }
-function sessionCookieAttrs(req) { return IS_PREVIEW && isHttpsRequest(req) ? 'SameSite=None; Secure' : `SameSite=Strict${IS_PROD || isHttpsRequest(req) ? '; Secure' : ''}`; }
-function clientIp(req) { const ip=req.socket.remoteAddress || 'unknown'; const candidate=String(req.headers['x-forwarded-for'] || '').split(',').at(-1).trim(); return trustedProxy(req) && isIP(candidate) ? candidate : ip; }
+function normalizeIp(raw){const s=String(raw||'').trim();if(!s)return '';const mapped=s.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i);return mapped?mapped[1]:s;}
+function buildProxyList(cidrsRaw){
+  const bl=new BlockList();
+  bl.addSubnet('127.0.0.0',8,'ipv4');
+  bl.addAddress('::1','ipv6');
+  if(!cidrsRaw)return bl;
+  for(const entry of String(cidrsRaw).split(',').map(x=>x.trim()).filter(Boolean)){
+    const slash=entry.indexOf('/');
+    const addr=normalizeIp(slash>=0?entry.slice(0,slash):entry);
+    const ver=isIP(addr);
+    if(!ver)throw new Error(`Invalid trusted proxy IP/CIDR: ${entry}`);
+    const type=ver===4?'ipv4':'ipv6';
+    if(slash>=0){
+      const prefix=Number(entry.slice(slash+1));
+      if(!Number.isInteger(prefix)||prefix<0||prefix>(ver===4?32:128))throw new Error(`Invalid trusted proxy CIDR prefix: ${entry}`);
+      bl.addSubnet(addr,prefix,type);
+    }else{
+      bl.addAddress(addr,type);
+    }
+  }
+  return bl;
+}
+const proxyAllowList=buildProxyList(process.env.TRUST_PROXY_CIDRS);
+function isProxyAllowListed(ip){const norm=normalizeIp(ip);const ver=isIP(norm);return ver?proxyAllowList.check(norm,ver===4?'ipv4':'ipv6'):false;}
+export function trustedProxy(req){return Boolean(process.env.VERCEL||(IS_PREVIEW&&process.env.K_SERVICE)||(process.env.TRUST_PROXY==='1'&&isProxyAllowListed(req.socket?.remoteAddress)));}
+export function isHttpsRequest(req){const proto=String(req.headers['x-forwarded-proto']||'').split(',')[0].trim().toLowerCase();return Boolean(req.socket?.encrypted||(trustedProxy(req)&&proto==='https'));}
+function sessionCookieAttrs(req){return IS_PREVIEW&&isHttpsRequest(req)?'SameSite=None; Secure':`SameSite=Strict${IS_PROD||isHttpsRequest(req)?'; Secure':''}`;}
+export function clientIp(req){
+  const sockIp=normalizeIp(req.socket?.remoteAddress)||'unknown';
+  if(!trustedProxy(req))return sockIp;
+  const xff=String(req.headers['x-forwarded-for']||'').split(',').map(x=>normalizeIp(x)).filter(Boolean);
+  for(let i=xff.length-1;i>=0;i--){
+    const cand=xff[i];
+    if(!isIP(cand))return sockIp;
+    if(!isProxyAllowListed(cand))return cand;
+  }
+  return xff[0]||sockIp;
+}
 const requests = new Map();
 function limit(req, group, max, windowMs) { const key=group+':'+clientIp(req), now=Date.now(); let item=requests.get(key); if(!item || now>=item.reset) { if(requests.size>=6000) { for(const [k,v] of requests) if(v.reset<=now) requests.delete(k); if(requests.size>=6000 && !requests.has(key)) err(429,'Too many requests. Please try again later.'); } item={count:0,reset:now+windowMs}; requests.set(key,item); } if(++item.count>max) err(429,'Too many requests. Please try again later.'); }
 function checkOrigin(req) { if (!['POST','PUT','PATCH','DELETE'].includes(req.method)) return; const origin=req.headers.origin; if(!origin) return; const proto=isHttpsRequest(req) ? 'https':'http'; const host=String(req.headers.host||''); if(!process.env.PUBLIC_ORIGIN && (!host || /[\s@/?#]/.test(host))) err(403,'Invalid origin.'); let expected; try { const u=new URL(process.env.PUBLIC_ORIGIN || `${proto}://${host}`); if(u.username||u.password) throw 0; expected=u.origin; } catch { err(403,'Invalid origin.'); } if(origin!==expected) err(403,'Cross-site requests are blocked.'); }
+function safeEqualString(a,b){if(typeof a!=='string'||typeof b!=='string')return false;const ba=Buffer.from(a),bb=Buffer.from(b);return ba.length===bb.length&&timingSafeEqual(ba,bb);}
 function cookie(req) { const s = (req.headers.cookie || '').split(';').map(x => x.trim()).find(x => x.startsWith(cookieName + '=')); return s?.slice(cookieName.length + 1) || ''; }
 function session(req) { const token = cookie(req); if (!/^[\w-]{40,120}$/.test(token)) return null; const row = db.prepare('SELECT username,csrf,expires_at FROM sessions WHERE token_hash=?').get(hashToken(token)); if (!row || row.expires_at < Date.now() || profile(db,row.username).disabled) return null; return row; }
-function auth(req) { const s = session(req); if (!s) err(401, 'Please sign in.'); if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && req.headers['x-csrf-token'] !== s.csrf) err(403, 'Session verification failed. Refresh the page.'); return {...s, ...profile(db,s.username)}; }
+function auth(req) { const s = session(req); if (!s) err(401, 'Please sign in.'); if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && !safeEqualString(req.headers['x-csrf-token'], s.csrf)) err(403, 'Session verification failed. Refresh the page.'); return {...s, ...profile(db,s.username)}; }
 function audit(username, action, details = '') { db.prepare('INSERT INTO audit(username,action,details) VALUES(?,?,?)').run(username, action, String(details).slice(0, 400)); }
 function consent(b) { if (![true, 'on', '1'].includes(b.consent)) err(400, 'Please agree to the privacy notice before submitting.'); return new Date().toISOString(); }
 async function sendWebhook(kind, record) { const dest = process.env.NOTIFY_WEBHOOK_URL; if (!dest) return; try { const target = new URL(dest); if (target.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(target.hostname)) throw Error('Webhook must use HTTPS'); const body = JSON.stringify({ event: kind, record, timestamp: new Date().toISOString() }); const { createHmac } = await import('node:crypto'); const signature = createHmac('sha256', process.env.NOTIFY_WEBHOOK_SECRET || '').update(body).digest('hex'); const response = await fetch(dest, { method: 'POST', headers: { 'content-type': 'application/json', 'x-repairlylabs-signature': 'sha256=' + signature }, body, signal: AbortSignal.timeout(5000) }); if (!response.ok) throw Error('HTTP ' + response.status); } catch (e) { console.error('[notification] Optional webhook failed:', e.message); } }
@@ -84,13 +119,14 @@ export const repairCenter = createRepairCenter({
     respond,
     verifyOwner: (actor,password)=>owner(db)===actor && typeof password==='string' && password.length<=150 && verifyPassword(password,findAccount(db,actor).password_hash),
     phoneSession: (req,ref)=>extended.phoneSession(req,ref),
+    onWebhook: (event)=>gatewayExtensions.handleWebhook(event),
     worker: process.env.REPAIRLYLABS_TEST !== '1' && process.env.KASHIFIX_TEST !== '1'
 });
 const partInquiries=createPartInquiries({db,auth,ok,bodyJson,limit,notify:sendWebhook});
 const emailRecovery=createEmailRecovery({db});
 const partsPayments=createPartsPayments({db,auth,ok,bodyJson,limit,phoneSession:(req,ref)=>extended.phoneSession(req,ref)});
-const extended=createExtendedOps({db,auth,ok,bodyJson,limit,verifyPassword,findAccount});
-const gatewayExtensions=createGatewayExtensions({db,auth,ok,bodyJson,limit,access:extended.access,worker:process.env.REPAIRLYLABS_TEST!=='1'});
+const extended=createExtendedOps({db,auth,ok,bodyJson,limit,verifyPassword,findAccount,dataDir:DATA_DIR});
+export const gatewayExtensions=createGatewayExtensions({db,auth,ok,bodyJson,limit,access:extended.access,worker:process.env.REPAIRLYLABS_TEST!=='1'});
 async function api(req, res, url) {
     if(url.pathname.startsWith('/api/part-inquiries'))return partInquiries.handle(req,res,url);
     if(url.pathname.startsWith('/api/gateway-extension/'))return gatewayExtensions.handle(req,res,url);
@@ -299,15 +335,20 @@ function staticFile(req, res, url) {
     if (!target.startsWith(WEBROOT + sep) && target !== WEBROOT) err(403, 'Forbidden.');
     let file = ['/part-request','/part-request/'].includes(p) ? join(WEBROOT,'part-request','index.html') : ['/repair-center','/repair-center/'].includes(p) ? join(WEBROOT,'repair-center','index.html') : ['/parts-payment','/parts-payment/'].includes(p)?join(WEBROOT,'parts-payment','index.html'):['/account-recovery','/account-recovery/'].includes(p)?join(WEBROOT,'account-recovery','index.html'):['/operations','/operations/'].includes(p)?join(WEBROOT,'operations','index.html'):target;
     if (!existsSync(file) || !statSync(file).isFile()) { if (extname(p)) err(404, 'Not found.'); file = join(WEBROOT, 'index.html'); }
-    const ext = extname(file); let data = readFileSync(file);if(file===join(WEBROOT,'index.html')&&canonical&&['/','/repairs','/parts','/about','/contact','/privacy'].includes(p))data=Buffer.from(data.toString().replace('</head>','<link rel="canonical" href="'+canonical+p+'">\n</head>'));
+    const ext = extname(file); let data = readFileSync(file);
+    if(file===join(WEBROOT,'index.html')&&canonical&&['/','/repairs','/parts','/about','/contact','/privacy','/terms'].includes(p)){
+        const extraHead=`<link rel="canonical" href="${canonical}${p}">\n${p==='/'?structuredData(getSettings(db),canonical)+'\n':''}`;
+        data=Buffer.from(data.toString().replace('</head>',extraHead+'</head>'));
+    }
     const privatePage=/^\/(admin|track|repair-center|parts-payment|account-recovery|operations)(?:\/|$)/.test(p) || (p.startsWith('/part-request') && url.searchParams.has('admin'));
+    const cacheHeader=(ext!=='.html'&&url.searchParams.has('v'))?'public, max-age=31536000, immutable':(ext!=='.html'&&['.css','.js','.mjs','.png','.webp','.svg','.ico'].includes(ext))?'public, max-age=300':'no-cache, no-store, must-revalidate';
     const pageHeaders = file === join(WEBROOT,'repair-center','index.html') ? {
         ...headers,
         'Content-Security-Policy': `default-src 'self'; script-src 'self' https://checkout.razorpay.com https://*.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.razorpay.com; img-src 'self' data: https://*.razorpay.com; connect-src 'self' https://*.razorpay.com; frame-src https://*.razorpay.com https://*.razorpay.co.in; font-src 'self' data: https://fonts.gstatic.com https://*.razorpay.com; object-src 'none'; base-uri 'self'; ${FRAME_ANCESTORS}; form-action 'self' https://*.razorpay.com;`,
         'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
         'Referrer-Policy': 'no-referrer'
     } : p.startsWith('/operations') ? {...headers,'Content-Security-Policy':headers['Content-Security-Policy'].replace("img-src 'self' data:","img-src 'self' data: https://*.razorpay.com https://*.razorpay.co.in")} : headers;
-    res.writeHead(200, { ...pageHeaders, ...(privatePage?{'X-Robots-Tag':'noindex, nofollow','Referrer-Policy':'no-referrer'}:{}), 'Content-Type': mime[ext] || 'application/octet-stream', 'Cache-Control': 'no-cache, no-store, must-revalidate' }); if (req.method === 'HEAD') res.end(); else res.end(data);
+    res.writeHead(200, { ...pageHeaders, ...(privatePage?{'X-Robots-Tag':'noindex, nofollow','Referrer-Policy':'no-referrer'}:{}), 'Content-Type': mime[ext] || 'application/octet-stream', 'Cache-Control': cacheHeader }); if (req.method === 'HEAD') res.end(); else res.end(data);
 }
 export async function handleRequest(req, res) {
     const started=Date.now();if(process.env.RL_REQUEST_LOG==='1')res.once('finish',()=>{const raw=String(req.url||'').split('?')[0];const group=raw.startsWith('/api/')?'api/'+(raw.split('/')[2]||'other'):'page';const safe=/^(api\/[a-z-]{1,32}|page)$/.test(group)?group:'other';console.log(JSON.stringify({event:'http',group:safe,method:req.method,status:res.statusCode,ms:Date.now()-started}));});
@@ -317,4 +358,14 @@ export async function handleRequest(req, res) {
 }
 export const server = createServer(handleRequest);
 server.on('close', () => { try { gatewayExtensions.close(); repairCenter.close(); } catch { } try { db.close(); } catch { } });
-if (process.env.REPAIRLYLABS_TEST !== '1' && !process.env.VERCEL) server.listen(PORT, '0.0.0.0', () => console.log(`RepairlyLabs ready at http://localhost:${PORT}`));
+function gracefulShutdown(signal) {
+    console.log(`[server] Received ${signal}, closing gracefully...`);
+    const force = setTimeout(() => process.exit(1), 10000);
+    force.unref();
+    server.close(() => { clearTimeout(force); process.exit(0); });
+}
+if (process.env.REPAIRLYLABS_TEST !== '1' && !process.env.VERCEL) {
+    process.once('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.once('SIGINT', () => gracefulShutdown('SIGINT'));
+    server.listen(PORT, '0.0.0.0', () => console.log(`RepairlyLabs ready at http://localhost:${PORT}`));
+}

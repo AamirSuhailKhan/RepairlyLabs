@@ -14,6 +14,7 @@ rem 1. Check if server is running on port 3001
 curl -s http://localhost:3001/api/health >nul 2>nul
 if errorlevel 1 (
   echo [INFO] Starting RepairlyLabs local server on port 3001...
+  set "PORT=3001"
   start /b "" node src/server.mjs
   timeout /t 3 /nobreak >nul
 )

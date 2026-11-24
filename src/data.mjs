@@ -91,7 +91,8 @@ export function openDatabase(dir = process.env.DATA_DIR || (process.env.VERCEL ?
  CREATE TABLE IF NOT EXISTS contacts(id INTEGER PRIMARY KEY,name TEXT NOT NULL,phone TEXT NOT NULL,email TEXT NOT NULL DEFAULT '',message TEXT NOT NULL,read INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
  CREATE TABLE IF NOT EXISTS admins(username TEXT PRIMARY KEY,password_hash TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
  CREATE TABLE IF NOT EXISTS sessions(token_hash TEXT PRIMARY KEY,username TEXT NOT NULL REFERENCES admins(username),csrf TEXT NOT NULL,expires_at INTEGER NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
- CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,username TEXT NOT NULL,action TEXT NOT NULL,details TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);`);
+ CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,username TEXT NOT NULL,action TEXT NOT NULL,details TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+ CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY,name TEXT NOT NULL,applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);`);
  // Non-destructive schema migration for installations created before consent logging.
  for(const table of ['bookings','orders','contacts']){
   if(!db.prepare(`PRAGMA table_info(${table})`).all().some(c=>c.name==='consent_at')) db.exec(`ALTER TABLE ${table} ADD COLUMN consent_at TEXT NOT NULL DEFAULT ''`);
@@ -99,6 +100,9 @@ export function openDatabase(dir = process.env.DATA_DIR || (process.env.VERCEL ?
  const bookingColumns=new Set(db.prepare('PRAGMA table_info(bookings)').all().map(c=>c.name));
  for(const [key,definition] of Object.entries({email:"TEXT NOT NULL DEFAULT ''",pin:"TEXT NOT NULL DEFAULT ''",slot:"TEXT NOT NULL DEFAULT ''",whatsapp:'INTEGER NOT NULL DEFAULT 0'}))if(!bookingColumns.has(key))db.exec(`ALTER TABLE bookings ADD COLUMN ${key} ${definition}`);
  db.exec(`UPDATE devices SET brand='Vivo' WHERE brand COLLATE NOCASE = 'vivo'; UPDATE devices SET brand='Realme' WHERE brand COLLATE NOCASE = 'realme'; UPDATE products SET brand='Vivo' WHERE brand COLLATE NOCASE = 'vivo'; UPDATE products SET brand='Realme' WHERE brand COLLATE NOCASE = 'realme';`);
+ const putMigration=db.prepare('INSERT OR IGNORE INTO schema_migrations(version,name) VALUES(?,?)');
+ putMigration.run(1,'initial_schema_and_consent');
+ putMigration.run(2,'booking_contact_preferences');
  seed(db); db.prepare("UPDATE settings SET value=? WHERE key='terms' AND value=?").run(DEFAULT_SETTINGS.terms,'Parts are confirmed for compatibility, stock, and final pricing before fulfillment. Repair quotations follow inspection. No payment is collected online.');return db;
 }
 function seed(db) {

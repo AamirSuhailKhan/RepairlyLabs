@@ -1,4 +1,6 @@
 import {randomBytes,createHash,createHmac,timingSafeEqual,createCipheriv,createDecipheriv} from 'node:crypto';
+import {existsSync,readdirSync,statSync,statfsSync} from 'node:fs';
+import {join} from 'node:path';
 const fail=(status,message)=>{throw Object.assign(Error(message),{status})};
 const hash=s=>createHash('sha256').update(s).digest('hex');
 const token=()=>randomBytes(32).toString('base64url');
@@ -11,7 +13,7 @@ const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 function base32(b){let bits=0,v=0,out='';for(const x of b){v=(v<<8)|x;bits+=8;while(bits>=5){out+=alphabet[(v>>>(bits-=5))&31]}}if(bits)out+=alphabet[(v<<(5-bits))&31];return out}
 export function totp(secret,step=Math.floor(Date.now()/30000)){const b=Buffer.alloc(8);b.writeBigUInt64BE(BigInt(step));const d=createHmac('sha1',secret).update(b).digest(),o=d.at(-1)&15;return String((d.readUInt32BE(o)&0x7fffffff)%1000000).padStart(6,'0')}
 function pdf(lines){const normalized=lines.flatMap(l=>{const s=String(l).normalize('NFKD').replace(/[^\x20-\x7e]/g,'?');return s.match(/.{1,90}/g)||['']});const pages=[];for(let i=0;i<normalized.length;i+=43)pages.push(normalized.slice(i,i+43));const objects=['<< /Type /Catalog /Pages 2 0 R >>','', '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];const ids=[];for(const page of pages){const id=objects.length+1;ids.push(id);const content='BT /F1 11 Tf 45 790 Td 17 TL '+page.map((s,i)=>(i?'T* ':'')+'('+s.replace(/[\\()]/g,'\\$&')+') Tj').join('\n')+' ET';objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents ${id+1} 0 R >>`,`<< /Length ${Buffer.byteLength(content)} >>\nstream\n${content}\nendstream`)}objects[1]=`<< /Type /Pages /Count ${ids.length} /Kids [${ids.map(n=>n+' 0 R').join(' ')}] >>`;let result='%PDF-1.4\n',offsets=[0];for(let i=0;i<objects.length;i++){offsets.push(Buffer.byteLength(result));result+=`${i+1} 0 obj\n${objects[i]}\nendobj\n`}const start=Buffer.byteLength(result);result+=`xref\n0 ${offsets.length}\n0000000000 65535 f \n${offsets.slice(1).map(x=>String(x).padStart(10,'0')+' 00000 n \n').join('')}trailer\n<< /Size ${offsets.length} /Root 1 0 R >>\nstartxref\n${start}\n%%EOF\n`;return Buffer.from(result)}
-export function createExtendedOps({db,auth,ok,bodyJson,limit,verifyPassword,findAccount,env=process.env,http=fetch}){
+export function createExtendedOps({db,auth,ok,bodyJson,limit,verifyPassword,findAccount,env=process.env,http=fetch,dataDir=''}){
  db.exec(`CREATE TABLE IF NOT EXISTS ext_mfa(username TEXT PRIMARY KEY,secret TEXT NOT NULL,enabled INTEGER NOT NULL DEFAULT 0,last_step INTEGER NOT NULL DEFAULT -1,expires INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS ext_customer_sessions(hash TEXT PRIMARY KEY,phone TEXT NOT NULL,expires INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS ext_otp_limits(phone TEXT PRIMARY KEY,window INTEGER NOT NULL,sends INTEGER NOT NULL,checks INTEGER NOT NULL);
@@ -44,7 +46,37 @@ export function createExtendedOps({db,auth,ok,bodyJson,limit,verifyPassword,find
  function capacity(d,s){if(!d||!s)return;const cap=q('SELECT capacity FROM ext_capacity WHERE date=? AND slot=?',d,s);if(cap&&used(d,s)>=cap.capacity)fail(409,'This appointment slot is full. Choose another.');}
  const record=ref=>q('SELECT * FROM bookings WHERE ref=?',ref)||q('SELECT * FROM orders WHERE ref=?',ref);
  function staffJob(s,ref){const j=q('SELECT * FROM rl_jobs WHERE ref=?',ref);if(!j)fail(404,'Repair not found.');allowed(s,'owner','manager','technician');if(role(s)==='technician'&&j.tech!==s.username)fail(403,'Assigned technician only.');return j}
- function access(req,ref){if(req.headers.authorization){if(phoneSession(req,ref))return;const t=String(req.headers.authorization).replace(/^Bearer /,'');const h=(q('SELECT token_hash FROM rl_jobs WHERE ref=?',ref)||q('SELECT token_hash FROM rl_parts_billing WHERE ref=?',ref))?.token_hash;if(/^[\w-]{43}$/.test(t)&&h&&hash(t)===h)return;fail(401,'Private access required.')}const s=auth(req);allowed(s,'owner','manager','accountant','technician');if(role(s)==='technician')staffJob(s,ref);}
+ function access(req,ref){if(req.headers.authorization){if(phoneSession(req,ref))return;const t=String(req.headers.authorization).replace(/^Bearer /,'');const h=(q('SELECT token_hash FROM rl_jobs WHERE ref=?',ref)||q('SELECT token_hash FROM rl_parts_billing WHERE ref=?',ref))?.token_hash;const computed=hash(t);if(/^[\w-]{43}$/.test(t)&&h&&h.length===computed.length&&timingSafeEqual(Buffer.from(computed),Buffer.from(h)))return;fail(401,'Private access required.')}const s=auth(req);allowed(s,'owner','manager','accountant','technician');if(role(s)==='technician')staffJob(s,ref);}
+ function monitorStats(){
+  const dir=dataDir||env.DATA_DIR||'';
+  let dbSizeBytes=null,walSizeBytes=null,disk=null,backups={count:0,latest_backup_at:null};
+  if(dir&&existsSync(dir)){
+   try{const dbFile=join(dir,'repairlylabs.sqlite');if(existsSync(dbFile))dbSizeBytes=statSync(dbFile).size;}catch{}
+   try{const walFile=join(dir,'repairlylabs.sqlite-wal');if(existsSync(walFile))walSizeBytes=statSync(walFile).size;else walSizeBytes=0;}catch{}
+   try{const fsInfo=statfsSync(dir);const totalBytes=Number(fsInfo.blocks)*Number(fsInfo.bsize);const availableBytes=Number(fsInfo.bavail)*Number(fsInfo.bsize);disk={total_bytes:totalBytes,available_bytes:availableBytes,free_pct:totalBytes>0?Math.round((availableBytes/totalBytes)*1000)/10:null};}catch{}
+   try{const bdir=join(dir,'backups');if(existsSync(bdir)){const files=readdirSync(bdir).filter(f=>/^repairlylabs-.*\.(?:sqlite|sqlite\.enc)$/.test(f)).map(f=>({f,mt:statSync(join(bdir,f)).mtimeMs})).sort((a,b)=>b.mt-a.mt);backups={count:files.length,latest_backup_at:files[0]?new Date(files[0].mt).toISOString():null};}}catch{}
+  }
+  return {
+   uptime_seconds:Math.floor(process.uptime()),
+   database:q('PRAGMA quick_check(1)').quick_check,
+   db_size_bytes:dbSizeBytes,
+   wal_size_bytes:walSizeBytes,
+   disk,
+   backups,
+   notifications:all('SELECT state,COUNT(*) n FROM rl_outbox GROUP BY state'),
+   failed_notifications_count:q("SELECT COUNT(*) n FROM rl_outbox WHERE state='failed'").n,
+   payments:all('SELECT state,COUNT(*) n FROM rl_payments GROUP BY state'),
+   reconciliation_required_count:q("SELECT COUNT(*) n FROM rl_payments WHERE state='reconciliation_required'").n,
+   memory_bytes:process.memoryUsage().rss,
+   sms_configured:!!(env.TWILIO_ACCOUNT_SID&&env.TWILIO_AUTH_TOKEN&&env.TWILIO_VERIFY_SERVICE_SID),
+   whatsapp_configured:!!(env.RL_WA_CUSTOMER_TEMPLATE&&env.RL_WA_TOKEN),
+   gateway_configured:!!(env.RAZORPAY_KEY_ID&&env.RAZORPAY_KEY_SECRET&&env.RAZORPAY_WEBHOOK_SECRET),
+   email_configured:!!(env.RL_RESEND_KEY&&env.RL_FROM_EMAIL),
+   mfa_key_configured:/^[a-f0-9]{64}$/i.test(env.RL_MFA_KEY||''),
+   backup_encryption_configured:/^[a-f0-9]{64}$/i.test(env.RL_BACKUP_KEY||''),
+   public_origin_configured:!!env.PUBLIC_ORIGIN
+  };
+ }
  function invoice(ref){const b=record(ref);if(!b)fail(404,'Not found.');const j=q('SELECT * FROM rl_jobs WHERE ref=?',ref);if(j&&!['completed','delivered'].includes(j.stage)||!j&& !['confirmed','in_progress','ready','completed'].includes(b.status))fail(409,'No confirmed bill yet.');const ru=n=>'INR '+(n/100).toFixed(2);const items=j?JSON.parse(j.items).map(i=>`${i.name} | ${i.qty} x ${ru(i.price)} = ${ru(i.qty*i.price)}`):all('SELECT * FROM order_items WHERE order_id=?',b.id).map(i=>`${i.name} | ${i.quantity} x ${ru(i.unit_price*100)} = ${ru(i.quantity*i.unit_price*100)}`);const total=j?j.total:b.subtotal*100;const payments=all("SELECT receipt,method,amount FROM rl_payments WHERE ref=? AND state='captured'",ref),refunds=all('SELECT a.amount,a.reference FROM rl_payment_adjustments a JOIN rl_payments p ON p.id=a.payment_row WHERE p.ref=?',ref),paid=payments.reduce((s,p)=>s+p.amount,0)-refunds.reduce((s,p)=>s+p.amount,0);return pdf(['RepairlyLabs | Varanasi','REPAIR / PARTS BILL AND PAYMENT STATEMENT (not a GST tax invoice)','Reference: INV-'+ref,'Customer: '+b.name,'Device / order: '+(j?b.brand+' '+b.model:'Spare parts'),'',...items,...(j?['Labour: '+ru(j.labor),'Discount: '+ru(j.discount)]:[]),'','Total: '+ru(total),'Net verified receipts: '+ru(paid),'Balance: '+ru(total-paid),'','Payment records:',...payments.map(p=>p.receipt+' '+p.method+' '+ru(p.amount)),...refunds.map(p=>'Refund '+p.reference+' '+ru(p.amount)), '', 'Warranty: '+(j?.warranty||'Contact the shop for applicable warranty.'),'Generated: '+new Date().toISOString(),'Non-Latin characters may be replaced in this PDF; web statement retains them.']);}
  async function handle(req,res,url){const p=url.pathname.slice('/api/extended'.length),m=req.method;
  if(p==='/otp/start'||p==='/otp/check'){if(m!=='POST')fail(405,'Method not allowed.');limit(req,'ext-otp',12,900000);const b=await bodyJson(req);const n=phone(b.phone);if(p.endsWith('/check')&&!/^\d{4,10}$/.test(b.code||''))fail(400,'Enter verification code.');return ok(res,await otp(n,p.endsWith('/check')?b.code:undefined));}
@@ -54,7 +86,7 @@ export function createExtendedOps({db,auth,ok,bodyJson,limit,verifyPassword,find
  const match=p.match(/^\/pdf\/([A-Z0-9-]+)$/);if(match&&m==='GET'){access(req,match[1]);const data=invoice(match[1]);res.writeHead(200,{'Content-Type':'application/pdf','Content-Disposition':`attachment; filename="INV-${match[1]}.pdf"`,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});return res.end(data)}
  const s=auth(req);if(p==='/mfa'&&m==='GET')return ok(res,{enabled:!!q('SELECT enabled FROM ext_mfa WHERE username=?',s.username)?.enabled,configured:/^[a-f0-9]{64}$/i.test(env.RL_MFA_KEY||'')});
  if(p==='/mfa'&&m==='POST'){limit(req,'ext-mfa',10,900000);const b=await bodyJson(req);auth(req);password(s,b.current);if(b.action==='begin'){if(q('SELECT enabled FROM ext_mfa WHERE username=?',s.username)?.enabled)fail(409,'Already enabled.');const secret=randomBytes(20);run('INSERT INTO ext_mfa VALUES(?,?,0,-1,?) ON CONFLICT(username) DO UPDATE SET secret=excluded.secret,last_step=-1,expires=excluded.expires',s.username,encrypt(secret),Date.now()+600000);return ok(res,{secret:base32(secret),issuer:'RepairlyLabs',account:s.username});}if(b.action==='enable'){if(!q('SELECT 1 FROM ext_mfa WHERE username=? AND enabled=0',s.username))fail(409,'Begin setup first.');tx(()=>{verifyMfa(s.username,b.code,true);run('UPDATE ext_mfa SET enabled=1 WHERE username=?',s.username);run('DELETE FROM sessions WHERE username=?',s.username);log(s,'mfa_enabled')});}else if(b.action==='disable'){tx(()=>{verifyMfa(s.username,b.code);run('DELETE FROM ext_mfa WHERE username=?',s.username);run('DELETE FROM sessions WHERE username=?',s.username);log(s,'mfa_disabled')});}else fail(400,'Unknown MFA action.');return ok(res,{signInAgain:true});}
- if(p==='/monitor'&&m==='GET'){allowed(s,'owner');return ok(res,{uptime_seconds:Math.floor(process.uptime()),database:q('PRAGMA quick_check(1)').quick_check,notifications:all('SELECT state,COUNT(*) n FROM rl_outbox GROUP BY state'),payments:all('SELECT state,COUNT(*) n FROM rl_payments GROUP BY state'),memory_bytes:process.memoryUsage().rss, sms_configured:!!env.TWILIO_VERIFY_SERVICE_SID,whatsapp_configured:!!(env.RL_WA_CUSTOMER_TEMPLATE&&env.RL_WA_TOKEN)});}
+ if(p==='/monitor'&&m==='GET'){allowed(s,'owner');return ok(res,monitorStats());}
  if(p==='/suppliers'&&m==='GET'){allowed(s,'owner','manager');return ok(res,all('SELECT * FROM ext_suppliers ORDER BY id DESC LIMIT 250'));}
  if(p==='/suppliers'&&m==='POST'){allowed(s,'owner','manager');const b=await bodyJson(req);auth(req);const id=run('INSERT INTO ext_suppliers(name,contact,phone,notes) VALUES(?,?,?,?)',requireText(b.name,120),clean(b.contact,120),clean(b.phone,40),clean(b.notes,400)).lastInsertRowid;log(s,'supplier_created',String(id));return ok(res,{id:Number(id)});}
  if(p==='/purchases'&&m==='GET'){allowed(s,'owner','manager');return ok(res,all('SELECT p.*,s.name supplier_name FROM ext_purchase p JOIN ext_suppliers s ON s.id=p.supplier ORDER BY p.id DESC LIMIT 250'));}

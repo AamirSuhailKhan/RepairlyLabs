@@ -4,22 +4,42 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 15s
     env_file:
       - path: ../.env
         required: false
     environment:
       NODE_ENV: production
       PORT: "3001"
+      DATA_DIR: /app/data
+      TRUST_PROXY: "1"
+      # Narrowly scope reverse-proxy trust to local loopback + private Docker bridge range.
+      # Override with exact bridge CIDR (e.g., 172.18.0.0/16) in .env if customized.
+      TRUST_PROXY_CIDRS: "${TRUST_PROXY_CIDRS:-172.16.0.0/12}"
       # Set PUBLIC_ORIGIN to the actual HTTPS storefront URL before deployment.
       # PUBLIC_ORIGIN: https://your-domain.example
-      DATA_DIR: /app/data
-      # Optional, configure via secure environment variables:
-      # NOTIFY_WEBHOOK_URL: https://...
-      # NOTIFY_WEBHOOK_SECRET: ...
     ports:
       - "127.0.0.1:3001:3001"
     volumes:
       - repairlylabs_data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3001/api/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
     init: true
 volumes:
   repairlylabs_data:

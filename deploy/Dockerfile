@@ -1,10 +1,10 @@
 FROM node:24-alpine
 WORKDIR /app
-COPY package.json ./
+COPY package.json package-lock.json ./
 COPY public/ ./public/
 COPY src/ ./src/
 COPY scripts/ ./scripts/
-RUN mkdir -p /app/data && chown -R node:node /app
+RUN mkdir -p /app/data && chown -R root:root /app && chmod -R a-w /app/src /app/public /app/scripts /app/package.json /app/package-lock.json && chown -R node:node /app/data
 USER node
 ENV NODE_ENV=production
 ENV PORT=3001

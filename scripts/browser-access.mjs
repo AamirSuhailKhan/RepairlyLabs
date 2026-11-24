@@ -14,7 +14,7 @@ try{
  const origin=`http://127.0.0.1:${port}`;const browserOrigin=`http://localhost:${port}`;
  const probe=async()=>{try{const r=await fetch(origin+'/api/admin/access-info',{signal:AbortSignal.timeout(1200)});return (await r.json()).version===3?'ready':'wrong';}catch{try{const r=await fetch(origin+'/api/health',{signal:AbortSignal.timeout(1000)});return r?'wrong':'offline';}catch{return 'offline';}}};
  let state=await probe();if(state==='wrong')throw Error('An older server or another application is using this port. Stop the old RepairlyLabs server or redeploy this updated version first.');
- if(state==='offline'){const out=openSync(join(root,'repairlylabs-server.log'),'a');const child=spawn(process.execPath,[join(root,'src','server.mjs')],{cwd:root,env:process.env,detached:true,windowsHide:true,stdio:['ignore',out,out]});child.unref();for(let i=0;i<30;i++){await new Promise(r=>setTimeout(r,300));state=await probe();if(state==='ready')break;}if(state!=='ready')throw Error('Server did not start. See repairlylabs-server.log.');}
+ if(state==='offline'){const out=openSync(join(root,'repairlylabs-server.log'),'a');const child=spawn(process.execPath,[join(root,'src','server.mjs')],{cwd:root,env:{...process.env,PORT:String(port)},detached:true,windowsHide:true,stdio:['ignore',out,out]});child.unref();for(let i=0;i<30;i++){await new Promise(r=>setTimeout(r,300));state=await probe();if(state==='ready')break;}if(state!=='ready')throw Error('Server did not start. See repairlylabs-server.log.');}
  let url=browserOrigin+'/admin';
  if(process.argv[2]==='recover'){
   const dataDir=resolve(process.env.DATA_DIR||'data');

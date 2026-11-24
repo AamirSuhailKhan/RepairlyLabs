@@ -107,6 +107,7 @@ const results = {
   workflows: {},
   consoleErrors: [],
   pageErrors: [],
+  failedAssets: [],
   failed5xx: []
 };
 
@@ -133,6 +134,8 @@ function attachMonitors(page, bucket) {
   page.on('response', (res) => {
     if (res.status() >= 500) {
       results.failed5xx.push(`${bucket}: ${res.status()} ${res.url()}`);
+    } else if (res.status() >= 400 && res.status() !== 401 && res.request().method() === 'GET') {
+      results.failedAssets.push(`${bucket}: ${res.status()} ${res.url()}`);
     }
   });
 }
@@ -517,6 +520,8 @@ try {
     { name: '390', width: 390, height: 844 },
     { name: '430', width: 430, height: 932 },
     { name: '768', width: 768, height: 1024 },
+    { name: '1024', width: 1024, height: 768 },
+    { name: '1280', width: 1280, height: 800 },
     { name: '1366', width: 1366, height: 768 },
     { name: '1920', width: 1920, height: 1080 }
   ];
@@ -527,6 +532,8 @@ try {
     { id: 'track', path: '/track', useAdmin: false },
     { id: 'about', path: '/about', useAdmin: false },
     { id: 'contact', path: '/contact', useAdmin: false },
+    { id: 'privacy', path: '/privacy', useAdmin: false },
+    { id: 'terms', path: '/terms', useAdmin: false },
     { id: 'part-request', path: '/part-request/', useAdmin: false },
     { id: 'repair-center-admin', path: '/repair-center/index.html?admin=1', useAdmin: true },
     { id: 'operations-admin', path: '/operations/index.html?admin=1', useAdmin: true },
@@ -593,6 +600,21 @@ try {
             }
           }
         }
+        // Check homepage floating hero chip vs process card overlap
+        const heroCard = document.querySelector('.hero-process-card');
+        const heroNote = document.querySelector('.hero-editorial-note');
+        if (heroCard && heroNote) {
+          const ncs = getComputedStyle(heroNote);
+          if (ncs.display !== 'none' && ncs.visibility !== 'hidden') {
+            const cr = heroCard.getBoundingClientRect();
+            const nr = heroNote.getBoundingClientRect();
+            const xOv = Math.max(0, Math.min(cr.right, nr.right) - Math.max(cr.left, nr.left));
+            const yOv = Math.max(0, Math.min(cr.bottom, nr.bottom) - Math.max(cr.top, nr.top));
+            if (xOv > 1 && yOv > 1) {
+              navOverlaps.push({ a: 'hero-process-card', b: 'hero-editorial-note', xOv: Math.round(xOv), yOv: Math.round(yOv) });
+            }
+          }
+        }
         return { vw, sw, overflowX: sw > vw + 1, overflowing: overflowing.slice(0, 5), navOverlaps };
       });
 
@@ -652,8 +674,9 @@ console.log(JSON.stringify({
   responsiveIssues: respIssues,
   consoleErrors: results.consoleErrors,
   pageErrors: results.pageErrors,
+  failedAssets: results.failedAssets,
   failed5xx: results.failed5xx
 }, null, 2));
-if (results.pageErrors.length || results.failed5xx.length || respIssues.length) {
+if (results.pageErrors.length || results.failed5xx.length || results.failedAssets.length || respIssues.length) {
   process.exitCode = 1;
 }

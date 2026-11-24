@@ -1,0 +1,11 @@
+# Staging HTTPS host configuration; replace staging.your-domain.example before deploying.
+staging.your-domain.example {
+  encode zstd gzip
+  reverse_proxy 127.0.0.1:3002
+  header {
+    X-Content-Type-Options nosniff
+    Referrer-Policy strict-origin-when-cross-origin
+    X-Robots-Tag "noindex, nofollow"
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+  }
+}

@@ -1,9 +1,13 @@
-# Replace your-domain.example with your actual domain and point DNS to this server.
+# Replace your-domain.example with your actual HTTPS domain and point DNS A/AAAA records to this server.
+# Note: Caddy automatically obtains TLS certificates, terminates HTTPS, and forwards X-Forwarded-For / X-Forwarded-Proto.
 your-domain.example {
   encode zstd gzip
-  reverse_proxy 127.0.0.1:3001
+  reverse_proxy 127.0.0.1:3001 {
+    flush_interval -1
+  }
   header {
     X-Content-Type-Options nosniff
     Referrer-Policy strict-origin-when-cross-origin
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
   }
 }

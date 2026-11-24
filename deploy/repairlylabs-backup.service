@@ -1,0 +1,16 @@
+[Unit]
+Description=RepairlyLabs daily verified SQLite backup
+After=repairlylabs.service
+
+[Service]
+Type=oneshot
+User=repairlylabs
+Group=repairlylabs
+WorkingDirectory=/srv/repairlylabs/app
+EnvironmentFile=-/srv/repairlylabs/app/.env
+ExecStart=/usr/bin/node /srv/repairlylabs/app/scripts/backup.mjs
+Nice=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/srv/repairlylabs/data
+PrivateTmp=true

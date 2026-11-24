@@ -41,12 +41,9 @@ if errorlevel 1 (
   exit /b 2
 )
 
-rem 4. Check npm dependencies (node_modules)
-if not exist "%~dp0node_modules\" (
-  echo [BLOCKED] Project dependencies missing.
-  echo The "node_modules" folder was not found in %~dp0
-  echo Run "npm install" in this directory before launching the test suite.
-  echo.
+rem 4. Verify dependency-free Node server entrypoint exists
+if not exist "%~dp0src\server.mjs" (
+  echo [BLOCKED] Server entrypoint missing: src\server.mjs
   pause
   exit /b 2
 )
