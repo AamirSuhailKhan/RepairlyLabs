@@ -312,6 +312,8 @@ footer{padding:32px;text-align:center;color:var(--slate);font-size:.82rem;border
   main{padding:0 16px;margin-top:20px}
   .panel{padding:20px}
   h1{font-size:1.6rem}
+  .row>h1.grow,#inbox-search>.grow{flex:1 0 100%}
+  #inbox-search{align-items:stretch}
   .logo{font-size:1.35rem}
   .logo-mark{height:34px;width:34px}
   .container{padding:0 18px}
