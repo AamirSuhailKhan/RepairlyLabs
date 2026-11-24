@@ -39,10 +39,12 @@
   const layers = [...petals.querySelectorAll('.rl-brand-intro__petal')];
   let completed = false;
   let release;
+  const onKey = (e) => { if (e.key === 'Escape') finish(); };
   const finish = () => {
     if (completed) return;
     completed = true;
     if (release) clearTimeout(release);
+    window.removeEventListener('keydown', onKey);
     overlay.getAnimations().forEach(a => a.cancel());
     layers.forEach(el => el.getAnimations().forEach(a => a.cancel()));
     logo.getAnimations().forEach(a => a.cancel());
@@ -53,6 +55,7 @@
     document.dispatchEvent(new CustomEvent('repairly:intro-end'));
   };
   skip.addEventListener('click', finish, {once:true});
+  window.addEventListener('keydown', onKey);
   window.addEventListener('pagehide', finish, {once:true});
   release = setTimeout(finish, 4050); // fail open under any partial failure
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));

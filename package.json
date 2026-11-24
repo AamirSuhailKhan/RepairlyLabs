@@ -10,6 +10,8 @@
   "scripts": {
     "start": "node src/server.mjs",
     "dev": "node --watch src/server.mjs",
+    "build": "node -e \"import {readdirSync} from 'node:fs'; import {execFileSync} from 'node:child_process'; for (const f of readdirSync('src')) if (f.endsWith('.mjs')) execFileSync(process.execPath, ['--check', 'src/' + f]);\"",
+    "lint": "node -e \"import {readdirSync} from 'node:fs'; import {execFileSync} from 'node:child_process'; for (const f of readdirSync('src')) if (f.endsWith('.mjs')) execFileSync(process.execPath, ['--check', 'src/' + f]);\"",
     "setup": "node scripts/setup.mjs",
     "backup": "node scripts/backup.mjs",
     "test": "node --test tests/*.test.mjs",

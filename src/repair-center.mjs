@@ -80,7 +80,7 @@ export function createRepairCenter({db,auth,ok,bodyJson,limit,respond,env=proces
   return ok(res,path==='/admin/jobs'?records:{items:records,total:q('SELECT COUNT(*) n'+from,tech,tech,unread?1:0,search).n,offset,limit:size});
  }
  if(path==='/admin/notifications'&&m==='GET'){requireRole(s,'owner','manager');return ok(res,all('SELECT * FROM rl_outbox ORDER BY id DESC LIMIT 100'));}
- if(path==='/admin/notification-retry'&&m==='POST'){requireRole(s,'owner','manager');const b=await bodyJson(req);run("UPDATE rl_outbox SET state='pending',attempts=0,next_at=0 WHERE id=? AND state IN ('failed','disabled')",Number(b.id));return ok(res,{ok:true})}
+ if(path==='/admin/notification-retry'&&m==='POST'){requireRole(s,'owner','manager');const b=await bodyJson(req);const id=Number(b.id);if(!Number.isSafeInteger(id)||id<1)die(400,'Invalid notification ID.');run("UPDATE rl_outbox SET state='pending',attempts=0,next_at=0 WHERE id=? AND state IN ('failed','disabled')",id);return ok(res,{ok:true})}
  const match=path.match(/^\/admin\/job\/([A-Z0-9-]+)(?:\/([a-z-]+))?$/);if(!match)die(404,'Unknown admin route.');const [,ref,action]=match;let j=job(ref);if(permission(s)==='technician'&&j.tech!==actor)die(403,'Repair is not assigned to you.');if(!action&&m==='GET')return ok(res,adminView(ref));if(m!=='POST')die(405,'Method not allowed.');const b=await bodyJson(req);auth(req);j=job(ref);if(permission(s)==='technician'&&j.tech!==actor)die(403,'Repair is not assigned to you.');
  if(['offline','reconcile','qr-review','release-attempt','refund-record'].includes(action))requireRole(s,'owner','accountant');
  else if(['quote','cancel','access'].includes(action))requireRole(s,'owner','manager');

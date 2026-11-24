@@ -4,7 +4,7 @@
    ========================================================================== */
 
 :root {
-  --intro-bg: #292320;
+  --intro-bg: #070b14;
   --intro-brand-coral: #fb3848;
   --intro-brand-orange: #f8680f;
   --intro-brand-yellow: #fdae0c;
@@ -23,7 +23,6 @@ body.intro-locked {
   inset: 0;
   z-index: 999999;
   background-color: var(--intro-bg);
-  background: radial-gradient(ellipse at 50% 50%, #3d312b 0%, #292320 60%, #1e1917 100%);
   display: flex;
   flex-direction: column;
   align-items: center;

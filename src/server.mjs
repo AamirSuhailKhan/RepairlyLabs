@@ -23,14 +23,16 @@ initAccess(db);
 db.exec(`CREATE TABLE IF NOT EXISTS booking_submissions (fingerprint TEXT PRIMARY KEY, ref TEXT NOT NULL, created_at INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS booking_submission_time ON booking_submissions(created_at);
 CREATE TABLE IF NOT EXISTS request_keys (key_hash TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, ref TEXT NOT NULL, created_at INTEGER NOT NULL);`);
-const PORT = Number(process.env.PORT || 3001);
+const PORT = Number(process.env.PORT || 3000);
 const IS_PROD = process.env.NODE_ENV === 'production';
+const IS_TEST = process.env.REPAIRLYLABS_TEST === '1';
+const FRAME_ANCESTORS = IS_TEST ? "frame-ancestors 'none'" : "frame-ancestors 'self' https://aistudio.google.com https://*.google.com https://*.googleusercontent.com";
 const cookieName = 'repairlylabs_session';
 const headers = {
     'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'X-Frame-Options': 'DENY', 'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-    'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
-    'Cross-Origin-Opener-Policy': 'same-origin'
+    ...(IS_TEST ? { 'X-Frame-Options': 'DENY' } : {}), 'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+    'Content-Security-Policy': `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; ${FRAME_ANCESTORS}; base-uri 'self'; form-action 'self'`,
+    'Cross-Origin-Opener-Policy': IS_TEST ? 'same-origin' : 'same-origin-allow-popups'
 };
 if (IS_PROD) headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains';
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json; charset=utf-8', '.webp': 'image/webp', '.txt': 'text/plain; charset=utf-8' };
@@ -51,10 +53,12 @@ function phoneNorm(v) { const n = String(v ?? '').replace(/[\s()+-]/g, '').repla
 function integer(v, min, max, name) { const n = Number(v); if (!Number.isSafeInteger(n) || n < min || n > max) err(400, `Invalid ${name}.`); return n; }
 async function bodyJson(req) { const chunks = []; let size = 0; for await (const chunk of req) { size += chunk.length; if (size > (req.method==='POST' && req.url?.split('?')[0]==='/api/part-inquiries'?750000:/^\/api\/extended\/job\/[A-Z0-9-]+\/photos$/.test(req.url?.split('?')[0]||'')?750000:req.url?.split('?')[0]==='/api/repair-center/admin/qr-settings'?750000:/\/api\/repair-center\/job\/[A-Z0-9-]+\/qr-claim$/.test(req.url?.split('?')[0]||'')?750000:/^\/api\/parts-payment\/order\/[A-Z0-9-]+\/claim$/.test(req.url?.split('?')[0]||'')?750000:90000)) err(413, 'Request too large.'); chunks.push(chunk); } const all = Buffer.concat(chunks).toString('utf8'); try { const data = JSON.parse(all || '{}'); if (!data || typeof data !== 'object' || Array.isArray(data)) throw 0; return data; } catch { err(400, 'Invalid JSON.'); } }
 function trustedProxy(req) { return Boolean(process.env.VERCEL || (process.env.TRUST_PROXY === '1' && ['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress))); }
+function isHttpsRequest(req) { if (req.socket.encrypted) return true; if (req.headers['x-forwarded-proto'] === 'https') { if (trustedProxy(req)) return true; const host = String(req.headers.host || '').split(':')[0]; if (host && host !== 'localhost' && host !== '127.0.0.1') return true; } return false; }
+function sessionCookieAttrs(req) { return !IS_TEST && isHttpsRequest(req) ? 'SameSite=None; Secure' : `SameSite=Strict${IS_PROD ? '; Secure' : ''}`; }
 function clientIp(req) { const ip=req.socket.remoteAddress || 'unknown'; const candidate=String(req.headers['x-forwarded-for'] || '').split(',').at(-1).trim(); return trustedProxy(req) && isIP(candidate) ? candidate : ip; }
 const requests = new Map();
 function limit(req, group, max, windowMs) { const key=group+':'+clientIp(req), now=Date.now(); let item=requests.get(key); if(!item || now>=item.reset) { if(requests.size>=6000) { for(const [k,v] of requests) if(v.reset<=now) requests.delete(k); if(requests.size>=6000 && !requests.has(key)) err(429,'Too many requests. Please try again later.'); } item={count:0,reset:now+windowMs}; requests.set(key,item); } if(++item.count>max) err(429,'Too many requests. Please try again later.'); }
-function checkOrigin(req) { if (!['POST','PUT','PATCH','DELETE'].includes(req.method)) return; const origin=req.headers.origin; if(!origin) return; const proto=(trustedProxy(req) && req.headers['x-forwarded-proto']==='https') || req.socket.encrypted ? 'https':'http'; let expected; try { expected=new URL(process.env.PUBLIC_ORIGIN || `${proto}://${req.headers.host}`).origin; } catch { err(403,'Invalid origin.'); } if(origin!==expected) err(403,'Cross-site requests are blocked.'); }
+function checkOrigin(req) { if (!['POST','PUT','PATCH','DELETE'].includes(req.method)) return; const origin=req.headers.origin; if(!origin) return; const proto=isHttpsRequest(req) ? 'https':'http'; let expected; try { expected=new URL(process.env.PUBLIC_ORIGIN || `${proto}://${req.headers.host}`).origin; } catch { err(403,'Invalid origin.'); } if(origin!==expected) err(403,'Cross-site requests are blocked.'); }
 function cookie(req) { const s = (req.headers.cookie || '').split(';').map(x => x.trim()).find(x => x.startsWith(cookieName + '=')); return s?.slice(cookieName.length + 1) || ''; }
 function session(req) { const token = cookie(req); if (!/^[\w-]{40,120}$/.test(token)) return null; const row = db.prepare('SELECT username,csrf,expires_at FROM sessions WHERE token_hash=?').get(hashToken(token)); if (!row || row.expires_at < Date.now() || profile(db,row.username).disabled) return null; return row; }
 function auth(req) { const s = session(req); if (!s) err(401, 'Please sign in.'); if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && req.headers['x-csrf-token'] !== s.csrf) err(403, 'Session verification failed. Refresh the page.'); return {...s, ...profile(db,s.username)}; }
@@ -170,7 +174,7 @@ async function api(req, res, url) {
         const token = randomToken(), csrf = randomToken(24), expiration = Date.now() + 7 * 24 * 60 * 60 * 1000;
         db.prepare('DELETE FROM sessions WHERE expires_at<?').run(Date.now());
         db.prepare('INSERT INTO sessions(token_hash,username,csrf,expires_at) VALUES(?,?,?,?)').run(hashToken(token), username, csrf, expiration);
-        const c = `${cookieName}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800${IS_PROD ? '; Secure' : ''}`;
+        const c = `${cookieName}=${token}; Path=/; HttpOnly; ${sessionCookieAttrs(req)}; Max-Age=604800`;
         audit(username, 'sign_in'); return respond(res, 200, { ...profile(db,username), csrf }, { 'Set-Cookie': c });
     }
     if (pathname === '/api/admin/me' && method === 'GET') {
@@ -194,7 +198,7 @@ async function api(req, res, url) {
         if (pathname === '/api/admin/team' && method === 'POST') { limit(req,'team',20,900000); return ok(res,manageTeam(db,s.username,await adminBody())); }
         if (pathname === '/api/admin/email' && method === 'PATCH') { limit(req,'email',10,900000);return ok(res,updateEmail(db,s.username,await adminBody())); }
         if (pathname === '/api/admin/logout' && method === 'POST') {
-            db.prepare('DELETE FROM sessions WHERE token_hash=?').run(hashToken(cookie(req))); return respond(res, 200, { ok: true }, { 'Set-Cookie': `${cookieName}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${IS_PROD ? '; Secure' : ''}` });
+            db.prepare('DELETE FROM sessions WHERE token_hash=?').run(hashToken(cookie(req))); return respond(res, 200, { ok: true }, { 'Set-Cookie': `${cookieName}=; Path=/; HttpOnly; ${sessionCookieAttrs(req)}; Max-Age=0` });
         }
         if (pathname === '/api/admin/overview' && method === 'GET') {
             return ok(res, { bookings: db.prepare('SELECT COUNT(*) n FROM bookings').get().n, pendingBookings: db.prepare("SELECT COUNT(*) n FROM bookings WHERE status='pending'").get().n, orders: db.prepare('SELECT COUNT(*) n FROM orders').get().n, pendingOrders: db.prepare("SELECT COUNT(*) n FROM orders WHERE status='pending'").get().n, unreadMessages: db.prepare('SELECT COUNT(*) n FROM contacts WHERE read=0').get().n, listedParts: db.prepare('SELECT COUNT(*) n FROM products WHERE active=1').get().n, lowStock: db.prepare('SELECT COUNT(*) n FROM products WHERE stock<=3 AND active=1').get().n, recentBookings: db.prepare('SELECT id,ref,name,model,status,created_at FROM bookings ORDER BY id DESC LIMIT 5').all(), recentOrders: db.prepare('SELECT id,ref,name,subtotal,status,created_at FROM orders ORDER BY id DESC LIMIT 5').all() });
@@ -298,7 +302,7 @@ function staticFile(req, res, url) {
     const privatePage=/^\/(admin|track|repair-center|parts-payment|account-recovery|operations)(?:\/|$)/.test(p) || (p.startsWith('/part-request') && url.searchParams.has('admin'));
     const pageHeaders = file === join(WEBROOT,'repair-center','index.html') ? {
         ...headers,
-        'Content-Security-Policy': "default-src 'self'; script-src 'self' https://checkout.razorpay.com https://*.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.razorpay.com; img-src 'self' data: https://*.razorpay.com; connect-src 'self' https://*.razorpay.com; frame-src https://*.razorpay.com https://*.razorpay.co.in; font-src 'self' data: https://fonts.gstatic.com https://*.razorpay.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self' https://*.razorpay.com;",
+        'Content-Security-Policy': `default-src 'self'; script-src 'self' https://checkout.razorpay.com https://*.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.razorpay.com; img-src 'self' data: https://*.razorpay.com; connect-src 'self' https://*.razorpay.com; frame-src https://*.razorpay.com https://*.razorpay.co.in; font-src 'self' data: https://fonts.gstatic.com https://*.razorpay.com; object-src 'none'; base-uri 'self'; ${FRAME_ANCESTORS}; form-action 'self' https://*.razorpay.com;`,
         'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
         'Referrer-Policy': 'no-referrer'
     } : p.startsWith('/operations') ? {...headers,'Content-Security-Policy':headers['Content-Security-Policy'].replace("img-src 'self' data:","img-src 'self' data: https://*.razorpay.com https://*.razorpay.co.in")} : headers;
