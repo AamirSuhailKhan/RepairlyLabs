@@ -16,14 +16,14 @@
   const name = overlay.querySelector('.rl-brand-intro__name');
   const skip = overlay.querySelector('.rl-brand-intro__skip');
   const colors = [
-    ['#ff6251','#f02785'], // coral / pink
-    ['#b33df3','#713de3'], // purple
-    ['#205ee2','#37bbf7'], // electric blue
-    ['#08a9b9','#5ed5b1'], // teal
-    ['#5ab342','#d9e344'], // leaf
-    ['#ffc72e','#ffab24'], // warm gold
-    ['#ff8723','#ff4a2c'], // orange
-    ['#ffca35','#ff8528']  // amber
+    ['#fe9659', '#e2673b'], // 0: Tangerine / warm orange (0 deg)
+    ['#c95852', '#983635'], // 1: Terracotta / rosewood (45 deg)
+    ['#aa433c', '#742626'], // 2: Deep burgundy (90 deg)
+    ['#c95a49', '#aa433c'], // 3: Crimson / rust (135 deg)
+    ['#de6546', '#e8734e'], // 4: Coral red (180 deg)
+    ['#fc8a32', '#f37f32'], // 5: Sunset orange (225 deg)
+    ['#febe5a', '#fea53f'], // 6: Golden amber (270 deg)
+    ['#fdd381', '#fdcd78']  // 7: Warm apricot honey (315 deg)
   ];
   // A complete closed Bézier silhouette per petal; no clip-path/sliced image.
   const petalPath = 'M100 109 C82 97 64 80 64 58 C64 36 81 21 102 20 C123 19 138 32 139 53 C140 76 116 99 100 109 Z';

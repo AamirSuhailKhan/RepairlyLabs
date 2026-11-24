@@ -19,7 +19,7 @@ html = f"""<!DOCTYPE html>
   body {{
     width: 1200px;
     height: 630px;
-    background: #08121f;
+    background: #292320;
     font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
     color: #ffffff;
     display: flex;
@@ -32,7 +32,7 @@ html = f"""<!DOCTYPE html>
     width: 600px;
     height: 600px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(251, 105, 72, 0.12) 0%, rgba(8, 18, 31, 0) 70%);
+    background: radial-gradient(circle, rgba(254, 150, 89, 0.15) 0%, rgba(41, 35, 32, 0) 70%);
     top: 15px;
     left: 20px;
   }}
@@ -41,7 +41,7 @@ html = f"""<!DOCTYPE html>
     width: 500px;
     height: 500px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(140, 231, 213, 0.08) 0%, rgba(8, 18, 31, 0) 70%);
+    background: radial-gradient(circle, rgba(243, 127, 50, 0.1) 0%, rgba(41, 35, 32, 0) 70%);
     bottom: -100px;
     right: 50px;
   }}
@@ -100,7 +100,7 @@ html = f"""<!DOCTYPE html>
     font-weight: 800;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: #ff9378;
+    color: #fe9659;
   }}
   .eyebrow::before {{
     content: '';
@@ -118,7 +118,7 @@ html = f"""<!DOCTYPE html>
     color: #ffffff;
   }}
   .brand-title span {{
-    color: #fb6948;
+    color: #f37f32;
   }}
   .subtitle {{
     font-size: 21px;
@@ -139,7 +139,7 @@ html = f"""<!DOCTYPE html>
     font-weight: 700;
     background: rgba(255, 255, 255, 0.07);
     border: 1px solid rgba(255, 255, 255, 0.14);
-    color: #8ce7d5;
+    color: #fdd381;
   }}
   .footer-bar {{
     margin-top: 15px;
