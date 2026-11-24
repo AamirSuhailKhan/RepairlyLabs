@@ -38,7 +38,7 @@ function bindHeroJourney(){
  const q=id=>wrap.querySelector('#'+id);
  const card=wrap.querySelector('.hero-process-card'), rows=[...wrap.querySelectorAll('[data-hero-step]')];
  const ico=q('hero-step-icon'),title=q('hero-step-title'),index=q('hero-step-index'),dynamic=q('hero-step-dynamic'),eyebrow=q('hero-step-eyebrow'),heading=q('hero-step-heading'),desc=q('hero-step-desc'),footer=q('hero-footer-text'),cta=q('hero-step-cta'),secondary=q('hero-secondary-cta'),note=q('hero-note-text'),bar=q('hero-progress-bar'),announcement=q('hero-step-announcement');
- const motion=window.matchMedia('(prefers-reduced-motion: reduce)'), life=new AbortController(), duration=2250;
+ const motion=window.matchMedia('(prefers-reduced-motion: reduce)'), life=new AbortController(), duration=750;
  let active=0,elapsed=0,last=null,raf=0,animation=null;
  const on=(target,event,fn)=>target?.addEventListener(event,fn,{signal:life.signal});
  const paint=()=>{if(bar)bar.style.transform=`scaleX(${Math.min(elapsed/duration,1)})`;};
@@ -58,7 +58,7 @@ function bindHeroJourney(){
   rows.forEach((btn,i)=>{const selected=i===active;btn.classList.toggle('is-active',selected);btn.setAttribute('aria-pressed',String(selected));const st=btn.querySelector('.process-step-state');if(st)st.innerHTML=icon(selected?'arrow':'chev',18);});
   if(manual&&announcement)announcement.textContent=`Showing ${s.title}, ${active+1} of 3.`;
   elapsed=0;last=null;paint();
-  if(animate&&!motion.matches&&dynamic?.animate){animation=dynamic.animate([{opacity:0,transform:'translateY(7px)'},{opacity:1,transform:'translateY(0)'}],{duration:300,easing:'cubic-bezier(.22,.61,.36,1)'});}
+  if(animate&&!motion.matches&&dynamic?.animate){animation=dynamic.animate([{opacity:0,transform:'translateY(5px)'},{opacity:1,transform:'translateY(0)'}],{duration:200,easing:'cubic-bezier(.22,.61,.36,1)'});}
  }
  function tick(now){
   if(!wrap.isConnected){cleanup();return;}
