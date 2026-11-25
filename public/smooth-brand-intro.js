@@ -54,7 +54,7 @@
     html.classList.remove('rl-intro-armed');
     document.dispatchEvent(new CustomEvent('repairly:intro-end'));
   };
-  skip.addEventListener('click', finish, {once:true});
+  if (skip) skip.addEventListener('click', finish, {once:true});
   window.addEventListener('keydown', onKey);
   window.addEventListener('pagehide', finish, {once:true});
   release = setTimeout(finish, 4050); // fail open under any partial failure

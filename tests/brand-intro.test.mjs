@@ -21,7 +21,7 @@ describe('RepairlyLabs Tear-Free Brand Intro Audit', () => {
     assert.ok(indexHtml.includes('rl-brand-intro__image'), 'Missing logo image element');
     assert.ok(indexHtml.includes('rl-brand-intro__petals'), 'Missing petals container element');
     assert.ok(indexHtml.includes('rl-brand-intro__name'), 'Missing brand name element');
-    assert.ok(indexHtml.includes('rl-brand-intro__skip'), 'Missing skip button element');
+    assert.ok(!indexHtml.includes('rl-brand-intro__skip'), 'Skip intro button should not be present');
   });
 
   it('contains official intact prismatic spiral brand assets', () => {
