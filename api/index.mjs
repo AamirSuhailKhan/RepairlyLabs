@@ -4,11 +4,13 @@
  * runs against persistent Turso Cloud SQLite over HTTPS; otherwise it fails
  * closed with 503 PERSISTENT_HOST_REQUIRED so no disposable /tmp data is created.
  */
+import { resolveTursoEnv } from '../src/data.mjs';
+
 let cloudHandler = null;
 
 export default async function handler(req, res) {
   if (process.env.VERCEL) {
-    if (!(process.env.TURSO_DATABASE_URL || process.env.LIBSQL_URL)) {
+    if (!resolveTursoEnv(process.env)) {
       res.statusCode = 503;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.setHeader('Cache-Control', 'no-store');

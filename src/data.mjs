@@ -110,15 +110,28 @@ export function openDatabase(dir = process.env.DATA_DIR || (process.env.VERCEL ?
  seed(db); db.prepare("UPDATE settings SET value=? WHERE key='terms' AND value=?").run(DEFAULT_SETTINGS.terms,'Parts are confirmed for compatibility, stock, and final pricing before fulfillment. Repair quotations follow inspection. No payment is collected online.');return db;
 }
 
+export function resolveTursoEnv(env = process.env) {
+ const directUrl = env.TURSO_DATABASE_URL || env.LIBSQL_URL || env.STORAGE_TURSO_DATABASE_URL || env.STORAGE_URL;
+ if (directUrl) {
+  const token = env.TURSO_AUTH_TOKEN || env.LIBSQL_AUTH_TOKEN || env.STORAGE_TURSO_AUTH_TOKEN || env.STORAGE_AUTH_TOKEN || '';
+  return { url: directUrl, authToken: token };
+ }
+ for (const [k, v] of Object.entries(env)) {
+  if (typeof v === 'string' && (/^libsql:\/\//i.test(v) || /\.turso\.io\b/i.test(v))) {
+   const prefix = k.replace(/(?:_TURSO_DATABASE_URL|_DATABASE_URL|_URL)$/, '');
+   const token = env[`${prefix}_TURSO_AUTH_TOKEN`] || env[`${prefix}_AUTH_TOKEN`] || env.TURSO_AUTH_TOKEN || '';
+   return { url: v, authToken: token };
+  }
+ }
+ return null;
+}
+
 export async function openAppDatabase({ dir, env = process.env } = {}) {
- const tursoUrl = env.TURSO_DATABASE_URL || env.LIBSQL_URL;
- if (!tursoUrl) {
+ const turso = resolveTursoEnv(env);
+ if (!turso) {
   return wrapDb(openDatabase(dir));
  }
- const db = createTursoClient({
-  url: tursoUrl,
-  authToken: env.TURSO_AUTH_TOKEN || env.LIBSQL_AUTH_TOKEN || ''
- });
+ const db = createTursoClient(turso);
  let m2 = null;
  try { m2 = await db.get('SELECT 1 AS ok FROM schema_migrations WHERE version=2'); } catch {}
  if (!m2) {
