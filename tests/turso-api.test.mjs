@@ -218,6 +218,21 @@ test('createCloudApp bootstraps OWNER_EMAIL, signs in via email, manages team em
     assert.equal(custLogin.status, 200);
     assert.equal(custLogin.json.name, 'Ravi Sharma');
 
+    // Distinguish unregistered email vs wrong password clearly
+    const missingLogin = await callApp(handler, 'POST', '/api/customer/login', {
+      email: 'nobody-yet@gmail.com',
+      password: 'CustomerPass123!'
+    });
+    assert.equal(missingLogin.status, 401);
+    assert.equal(missingLogin.json.code, 'ACCOUNT_NOT_FOUND');
+
+    const badPassLogin = await callApp(handler, 'POST', '/api/customer/login', {
+      email: 'ravi.sharma@gmail.com',
+      password: 'WrongPassword!'
+    });
+    assert.equal(badPassLogin.status, 401);
+    assert.equal(badPassLogin.json.code, 'INVALID_PASSWORD');
+
     syncDb.close();
   } finally {
     rmSync(dir, { recursive: true, force: true });

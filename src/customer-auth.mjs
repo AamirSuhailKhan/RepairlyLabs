@@ -132,8 +132,17 @@ export function createCustomerAuth({
       const email = normalizeEmail(b.email);
       const pass = String(b.password || '');
       const acc = await db.get('SELECT * FROM customer_accounts WHERE email = ? COLLATE NOCASE', email);
-      if (!acc || pass.length > 150 || !verifyPassword(pass, acc.password_hash)) {
-        err(401, 'Incorrect email or password. First time here? Click "Create account" to register first.');
+      if (!acc) {
+        return respond(res, 401, {
+          error: 'No account exists for this email yet. Create an account first to sign in.',
+          code: 'ACCOUNT_NOT_FOUND'
+        });
+      }
+      if (pass.length > 150 || !verifyPassword(pass, acc.password_hash)) {
+        return respond(res, 401, {
+          error: 'Wrong password for this account. Click Show to check your password.',
+          code: 'INVALID_PASSWORD'
+        });
       }
       const { cookieHeader, payload } = await issueSession(req, acc);
       return respond(res, 200, payload, { 'Set-Cookie': cookieHeader });

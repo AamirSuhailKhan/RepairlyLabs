@@ -2,7 +2,7 @@
 const app=document.getElementById('app');
 const dialogRoot=document.getElementById('dialog-root');
 const toastRoot=document.getElementById('toast-root');
-const state={config:null,products:[],cart:[],admin:null,adminTab:'overview',adminData:null,customer:null,customerMode:'login',models:[],readOnlyPreview:false,staticCatalog:null,shop:{brand:'',category:'',q:'',model:'',limit:24},shopData:null};
+const state={config:null,products:[],cart:[],admin:null,adminTab:'overview',adminData:null,customer:null,customerMode:'login',customerDraftEmail:'',customerNotice:'',models:[],readOnlyPreview:false,staticCatalog:null,shop:{brand:'',category:'',q:'',model:'',limit:24},shopData:null};
 try{state.cart=JSON.parse(localStorage.getItem('repairlylabs-cart')||'[]');if(!Array.isArray(state.cart))state.cart=[];}catch{state.cart=[];}
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>'₹'+Number(n||0).toLocaleString('en-IN');
@@ -163,6 +163,8 @@ async function accountRoute(){
  }
  if(!state.customer){
   const isReg=state.customerMode==='register';
+  const draftEmail=esc(state.customerDraftEmail||'');
+  const noticeHtml=state.customerNotice?`<div id="cust-notice" class="status-note" style="margin-bottom:16px">${icon('info',17)} ${esc(state.customerNotice)}</div>`:'';
   frame(`${pageHero('Customer Account',isReg?'Create your <span class="highlight">account.</span>':'Sign in with <span class="highlight">any email.</span>','Create a personal account or sign in to submit and track your repair requests and spare-part enquiries.')}
    <section class="section page-area"><div class="container" style="max-width:560px">
     <div style="display:flex;gap:10px;margin-bottom:20px">
@@ -172,17 +174,20 @@ async function accountRoute(){
     ${isReg?`<form class="form-panel" data-form="customer-register">
      <h3>Create your account</h3>
      <p class="form-intro">Register with any email ID to submit and view your own repair bookings and parts enquiries.</p>
+     ${noticeHtml}
      <div class="field"><label for="cust-reg-name">Full name *</label><input id="cust-reg-name" name="name" maxlength="100" autocomplete="name" required placeholder="Your name"></div>
-     <div class="field" style="margin-top:14px"><label for="cust-reg-email">Email ID *</label><input id="cust-reg-email" name="email" type="email" maxlength="120" autocomplete="email" required placeholder="you@gmail.com"></div>
+     <div class="field" style="margin-top:14px"><label for="cust-reg-email">Email ID *</label><input id="cust-reg-email" name="email" type="email" maxlength="120" autocomplete="email" required value="${draftEmail}" placeholder="you@gmail.com"></div>
      <div class="field" style="margin-top:14px"><label for="cust-reg-phone">Mobile number (optional)</label><input id="cust-reg-phone" name="phone" inputmode="tel" maxlength="17" autocomplete="tel" placeholder="10-digit Indian mobile number"></div>
-     <div class="field" style="margin-top:14px"><label for="cust-reg-pass">Password (8+ characters) *</label><input id="cust-reg-pass" name="password" type="password" minlength="8" maxlength="150" autocomplete="new-password" required></div>
+     <div class="field" style="margin-top:14px"><label for="cust-reg-pass">Password (8+ characters) *</label><div class="access-password"><input id="cust-reg-pass" name="password" type="password" minlength="8" maxlength="150" autocomplete="new-password" required><button type="button" class="access-toggle" data-access-toggle="cust-reg-pass" aria-label="Show password">Show</button></div></div>
      <div id="cust-error" role="alert" class="access-error" hidden style="margin-top:14px"></div>
      <button class="btn btn-primary" type="submit" style="width:100%;margin-top:18px">Create account ${icon('arrow')}</button>
+     <button type="button" class="access-help" data-action="cust-mode" data-mode="login" style="margin-top:14px">Already created an account here? Sign in →</button>
     </form>`:`<form class="form-panel" data-form="customer-login">
      <h3>Sign in to your account</h3>
      <p class="form-intro">First time here? Click <strong>Create account</strong> first — your Gmail/email password won't work until you register on this site.</p>
-     <div class="field"><label for="cust-login-email">Email ID *</label><input id="cust-login-email" name="email" type="email" maxlength="120" autocomplete="email" required placeholder="you@gmail.com"></div>
-     <div class="field" style="margin-top:14px"><label for="cust-login-pass">Password *</label><input id="cust-login-pass" name="password" type="password" minlength="1" maxlength="150" autocomplete="current-password" required></div>
+     ${noticeHtml}
+     <div class="field"><label for="cust-login-email">Email ID *</label><input id="cust-login-email" name="email" type="email" maxlength="120" autocomplete="email" required value="${draftEmail}" placeholder="you@gmail.com"></div>
+     <div class="field" style="margin-top:14px"><label for="cust-login-pass">Password *</label><div class="access-password"><input id="cust-login-pass" name="password" type="password" minlength="1" maxlength="150" autocomplete="current-password" required><button type="button" class="access-toggle" data-access-toggle="cust-login-pass" aria-label="Show password">Show</button></div></div>
      <div id="cust-error" role="alert" class="access-error" hidden style="margin-top:14px"></div>
      <button class="btn btn-primary" type="submit" style="width:100%;margin-top:18px">Sign in ${icon('arrow')}</button>
      <button type="button" class="access-help" data-action="cust-mode" data-mode="register" style="margin-top:14px">New user? Create an account first →</button>
@@ -246,7 +251,7 @@ document.addEventListener('click',async event=>{
  if(what==='new-service'){serviceModal(null);return;}
  if(what==='more-admin-products'){try{const next=await api('/api/admin/products?limit=100&offset='+state.adminData.items.length);state.adminData.items.push(...next.items);document.getElementById('admin-content').innerHTML=productsAdminView(state.adminData);}catch(e){toast(e.message,true);}return;}
  if(what==='admin-logout'){try{await api('/api/admin/logout',{method:'POST',body:{}});}catch{}state.admin=null;navigate('/');toast('Signed out.');}
- if(what==='cust-mode'){state.customerMode=action.dataset.mode==='register'?'register':'login';await accountRoute();return;}
+ if(what==='cust-mode'){const typedEmail=(document.getElementById('cust-login-email')||document.getElementById('cust-reg-email'))?.value?.trim();if(typedEmail)state.customerDraftEmail=typedEmail;state.customerNotice='';state.customerMode=action.dataset.mode==='register'?'register':'login';await accountRoute();return;}
  if(what==='cust-logout'){try{await api('/api/customer/logout',{method:'POST',body:{}});}catch{}state.customer=null;toast('Signed out.');await accountRoute();}
 });
 let searchTimer;
@@ -269,15 +274,15 @@ document.addEventListener('submit',async event=>{const f=event.target;if(!f.data
  case 'admin-offline-codes':{const d=await api('/api/admin/recovery-codes',{method:'POST',body:{current:b.current}});document.getElementById('offline-codes').innerHTML='<p>Save these now. Each code can be used once.</p><textarea readonly rows="6" style="width:100%">'+esc(d.codes.join('\n'))+'</textarea>';f.reset();break;}
  case 'admin-team-create':case 'admin-team-manage':{await api('/api/admin/team',{method:'POST',body:{...b,action:type==='admin-team-create'?'create':b.action}});toast('Team account updated.');await loadAdminTab();break;}
  case 'admin-login':{const d=await api('/api/admin/login',{method:'POST',body:b});state.admin=d;state.adminTab='overview';renderAdmin();toast('Signed in successfully.');break;}
- case 'customer-login':{const d=await api('/api/customer/login',{method:'POST',body:b});state.customer=d;toast('Signed in.');await accountRoute();break;}
- case 'customer-register':{const d=await api('/api/customer/register',{method:'POST',body:b});state.customer=d;toast('Account created.');await accountRoute();break;}
+ case 'customer-login':{const d=await api('/api/customer/login',{method:'POST',body:b});state.customer=d;state.customerDraftEmail='';state.customerNotice='';toast('Signed in.');await accountRoute();break;}
+ case 'customer-register':{const d=await api('/api/customer/register',{method:'POST',body:b});state.customer=d;state.customerDraftEmail='';state.customerNotice='';toast('Account created.');await accountRoute();break;}
  case 'admin-settings':{await api('/api/admin/settings',{method:'PATCH',body:b});state.config=await api('/api/config');toast('Public business settings saved.');break;}
  case 'admin-product':{const id=f.dataset.id;const values={...b,price:Number(b.price),stock:Number(b.stock),active:b.active==='1',featured:b.featured==='1',sample:b.sample==='1'};await api(id?'/api/admin/products/'+id:'/api/admin/products',{method:id?'PUT':'POST',body:values});closeDialog();toast('Part listing saved.');await loadAdminTab();try{state.products=(await api('/api/products?limit=100')).items;}catch{state.products=[];}break;}
  case 'admin-service':{const vals={...b,id:b.id?Number(b.id):null,active:b.active==='1',sort_order:Number(b.sort_order)};await api('/api/admin/services',{method:'POST',body:vals});closeDialog();toast('Repair service saved.');await loadAdminTab();state.config=await api('/api/config');break;}
  case 'admin-models':{const rows=b.lines.split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map(l=>{const idx=l.indexOf(',');return {brand:idx>=0?l.slice(0,idx).trim():'',model:idx>=0?l.slice(idx+1).trim():''};});if(rows.some(x=>!x.brand||!x.model))throw new Error('Each line must contain Brand, Model.');const d=await api('/api/admin/models/bulk',{method:'POST',body:{models:rows}});toast(`${d.added} new models imported.`);await loadAdminTab();state.config=await api('/api/config');break;}
  case 'admin-password':{await api('/api/admin/password',{method:'PATCH',body:b});f.reset();toast('Password updated. Other sessions signed out.');break;}
  }
- }catch(e){toast(e.message,true);if(['admin-login','admin-recovery'].includes(type)){const el=document.getElementById('access-error');if(el){el.hidden=false;el.textContent=e.message;}}if(['customer-login','customer-register'].includes(type)){const el=document.getElementById('cust-error');if(el){el.hidden=false;el.textContent=e.message;}}if(type==='track'){document.getElementById('track-result').innerHTML=`<div class="status-note" style="border-color:#f7bdaf;background:#fff7f5;color:#b04a38;margin-top:17px">${icon('info',18)} ${esc(e.message)}</div>`;}}
+ }catch(e){if(type==='customer-login'&&e.code==='ACCOUNT_NOT_FOUND'){state.customerDraftEmail=String(b.email||'').trim();state.customerMode='register';state.customerNotice=`No account exists yet for ${state.customerDraftEmail}. Enter your name and choose a password below to register:`;toast('New user — enter your name and password below to create your account.');await accountRoute();document.getElementById('cust-reg-name')?.focus();return;}if(type==='customer-register'&&e.status===409){state.customerDraftEmail=String(b.email||'').trim();state.customerMode='login';state.customerNotice=`An account already exists for ${state.customerDraftEmail}. Enter your password below to sign in.`;toast('Account already exists — sign in below.');await accountRoute();document.getElementById('cust-login-pass')?.focus();return;}toast(e.message,true);if(['admin-login','admin-recovery'].includes(type)){const el=document.getElementById('access-error');if(el){el.hidden=false;el.textContent=e.message;}}if(['customer-login','customer-register'].includes(type)){const el=document.getElementById('cust-error');if(el){el.hidden=false;el.textContent=e.message;}}if(type==='track'){document.getElementById('track-result').innerHTML=`<div class="status-note" style="border-color:#f7bdaf;background:#fff7f5;color:#b04a38;margin-top:17px">${icon('info',18)} ${esc(e.message)}</div>`;}}
  finally{delete f.dataset.submitting;if(button?.isConnected)loadingButton(button,false);}
 });
 window.addEventListener('popstate',route);
