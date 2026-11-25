@@ -125,4 +125,4 @@ export function verifyPassword(password,stored){try {const [salt,hex]=stored.spl
 export function hashToken(token){return createHash('sha256').update(token).digest('hex');}
 export function randomToken(bytes=32){return randomBytes(bytes).toString('base64url');}
 export function publicRef(kind){return `${kind}-${new Date().toISOString().slice(2,10).replace(/-/g,'')}-${randomBytes(4).toString('hex').toUpperCase()}`;}
-export { CATALOG, DEFAULT_SETTINGS };
+export { CATALOG, DEFAULT_SETTINGS, SERVICE_SEED };
