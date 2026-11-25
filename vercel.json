@@ -16,6 +16,7 @@
     { "source": "/account-recovery", "destination": "/account-recovery/index.html" },
     { "source": "/account-recovery/(.*)", "destination": "/account-recovery/index.html" },
     { "source": "/admin", "destination": "/index.html" },
+    { "source": "/account", "destination": "/index.html" },
     { "source": "/track", "destination": "/index.html" },
     { "source": "/repairs", "destination": "/index.html" },
     { "source": "/parts", "destination": "/index.html" },

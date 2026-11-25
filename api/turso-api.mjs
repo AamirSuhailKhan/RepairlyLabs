@@ -10,6 +10,7 @@ import {
   verifyPassword
 } from '../src/data.mjs';
 import { seoOrigin, structuredData } from '../src/seo.mjs';
+import { createCustomerAuth, CUSTOMER_SCHEMA_SQL } from '../src/customer-auth.mjs';
 
 const cookieName = 'repairlylabs_session';
 const states = ['pending', 'confirmed', 'in_progress', 'ready', 'completed', 'cancelled'];
@@ -167,17 +168,38 @@ export function createCloudApp({ env = process.env, dbOverride = null } = {}) {
     if (!initPromise) {
       initPromise = (async () => {
         const db = dbOverride || await openAppDatabase({ env });
-        let m3 = null;
-        try { m3 = await db.get('SELECT 1 AS ok FROM schema_migrations WHERE version=3'); } catch {}
-        if (!m3) {
-          await db.exec(CLOUD_EXTRA_SCHEMA_SQL);
+        let m4 = null;
+        try { m4 = await db.get('SELECT 1 AS ok FROM schema_migrations WHERE version=4'); } catch {}
+        if (!m4) {
+          await db.exec(CLOUD_EXTRA_SCHEMA_SQL + '\n' + CUSTOMER_SCHEMA_SQL);
           await db.run('INSERT OR IGNORE INTO schema_migrations(version,name) VALUES(?,?)', 3, 'cloud_full_schema');
+          await db.run('INSERT OR IGNORE INTO schema_migrations(version,name) VALUES(?,?)', 4, 'customer_accounts');
         }
         await ensureEnvOwner(db);
         return db;
       })().catch(e => { initPromise = null; throw e; });
     }
     return initPromise;
+  }
+
+  let customerAuthInstance = null;
+  function getCustomerAuth(db) {
+    if (!customerAuthInstance) {
+      customerAuthInstance = createCustomerAuth({
+        db,
+        limit,
+        bodyJson,
+        ok,
+        respond,
+        cookieAttrs: () => 'SameSite=Strict; Secure',
+        phoneNorm,
+        passwordHash,
+        verifyPassword,
+        hashToken,
+        randomToken
+      });
+    }
+    return customerAuthInstance;
   }
 
   async function owner(db) {
@@ -287,6 +309,10 @@ export function createCloudApp({ env = process.env, dbOverride = null } = {}) {
     const { pathname } = url;
     const method = req.method;
 
+    if (pathname.startsWith('/api/customer/')) {
+      return getCustomerAuth(db).handle(req, res, url);
+    }
+
     if (pathname === '/api/ready' && method === 'GET') {
       await db.get('SELECT 1 AS ok');
       return ok(res, { ok: true, mode: 'turso' });
@@ -329,7 +355,8 @@ export function createCloudApp({ env = process.env, dbOverride = null } = {}) {
       const address = str(b.address, 260);
       if (methodVal === 'Request pickup' && !address) err(400, 'Full address is required for pickup.');
       const notes = str(b.notes, 800);
-      const email = str(b.email, 180), pin = str(b.pin, 6), slot = str(b.slot, 30);
+      const cust = await getCustomerAuth(db).session(req);
+      const email = str(b.email, 180) || (cust?.email || ''), pin = str(b.pin, 6), slot = str(b.slot, 30);
       const whatsapp = b.whatsapp === true || b.whatsapp === 'on' ? 1 : 0;
       if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) err(400, 'Invalid email.');
       if (pin && !/^[1-9]\d{5}$/.test(pin)) err(400, 'Enter a valid 6-digit PIN code.');

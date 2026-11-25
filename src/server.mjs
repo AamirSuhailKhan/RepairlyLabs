@@ -15,6 +15,7 @@ import { createExtendedOps } from './extended-ops.mjs';
 import { createPartsPayments } from './parts-payment.mjs';
 import { createPartInquiries } from './part-inquiries.mjs';
 import { createReferenceAllocator } from './repair-reference.mjs';
+import { createCustomerAuth } from './customer-auth.mjs';
 
 import { ROOT, DATA_DIR } from './config.mjs';
 const WEBROOT = join(ROOT, 'public');
@@ -126,8 +127,10 @@ const partInquiries=createPartInquiries({db,auth,ok,bodyJson,limit,notify:sendWe
 const emailRecovery=createEmailRecovery({db});
 const partsPayments=createPartsPayments({db,auth,ok,bodyJson,limit,phoneSession:(req,ref)=>extended.phoneSession(req,ref)});
 const extended=createExtendedOps({db,auth,ok,bodyJson,limit,verifyPassword,findAccount,dataDir:DATA_DIR});
+const customerAuth=createCustomerAuth({db,limit,bodyJson,ok,respond,cookieAttrs:sessionCookieAttrs,phoneNorm,passwordHash:(await import('./data.mjs')).passwordHash,verifyPassword,hashToken,randomToken});
 export const gatewayExtensions=createGatewayExtensions({db,auth,ok,bodyJson,limit,access:extended.access,worker:process.env.REPAIRLYLABS_TEST!=='1'});
 async function api(req, res, url) {
+    if(url.pathname.startsWith('/api/customer/'))return customerAuth.handle(req,res,url);
     if(url.pathname.startsWith('/api/part-inquiries'))return partInquiries.handle(req,res,url);
     if(url.pathname.startsWith('/api/gateway-extension/'))return gatewayExtensions.handle(req,res,url);
     if(url.pathname.startsWith('/api/extended/'))return extended.handle(req,res,url);
@@ -154,7 +157,7 @@ async function api(req, res, url) {
         const date = str(b.date, 20); if (date && (!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date+'T00:00:00Z'))||new Date(date+'T00:00:00Z').toISOString().slice(0,10)!==date)) err(400, 'Invalid date.');
         const consentAt = consent(b); const locality = required(b.locality, 'Area/locality', 100); const address = str(b.address, 260);
         if (method === 'Request pickup' && !address) err(400, 'Full address is required for pickup.');
-        const notes = str(b.notes, 800); const email=str(b.email,180), pin=str(b.pin,6), slot=str(b.slot,30), whatsapp=b.whatsapp===true||b.whatsapp==='on'?1:0; if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))err(400,'Invalid email.'); if(pin&&!/^[1-9]\d{5}$/.test(pin))err(400,'Enter a valid 6-digit PIN code.'); if(slot&&!['Morning','Afternoon','Evening'].includes(slot))err(400,'Invalid appointment time preference.');
+        const notes = str(b.notes, 800); const cust = await customerAuth.session(req); const email=str(b.email,180)||(cust?.email||''), pin=str(b.pin,6), slot=str(b.slot,30), whatsapp=b.whatsapp===true||b.whatsapp==='on'?1:0; if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))err(400,'Invalid email.'); if(pin&&!/^[1-9]\d{5}$/.test(pin))err(400,'Enter a valid 6-digit PIN code.'); if(slot&&!['Morning','Afternoon','Evening'].includes(slot))err(400,'Invalid appointment time preference.');
         const fingerprint=digest(JSON.stringify(['booking',name,phone,brand,model,issue,method,date,locality,address,notes,email,pin,slot,whatsapp])),key=requestKey(b);const old=checkKey(key,fingerprint);if(old)return ok(res,bookingReplay(b,old),200);
         const previous=db.prepare('SELECT ref FROM booking_submissions WHERE fingerprint=? AND created_at>?').get(fingerprint,Date.now()-120000);
         if(previous) err(409,'An identical repair request was recently received. Check your original confirmation or contact the repair team.');
@@ -340,7 +343,7 @@ function staticFile(req, res, url) {
         const extraHead=`<link rel="canonical" href="${canonical}${p}">\n${p==='/'?structuredData(getSettings(db),canonical)+'\n':''}`;
         data=Buffer.from(data.toString().replace('</head>',extraHead+'</head>'));
     }
-    const privatePage=/^\/(admin|track|repair-center|parts-payment|account-recovery|operations)(?:\/|$)/.test(p) || (p.startsWith('/part-request') && url.searchParams.has('admin'));
+    const privatePage=/^\/(admin|track|account|repair-center|parts-payment|account-recovery|operations)(?:\/|$)/.test(p) || (p.startsWith('/part-request') && url.searchParams.has('admin'));
     const cacheHeader=(ext!=='.html'&&url.searchParams.has('v'))?'public, max-age=31536000, immutable':(ext!=='.html'&&['.css','.js','.mjs','.png','.webp','.svg','.ico'].includes(ext))?'public, max-age=300':'no-cache, no-store, must-revalidate';
     const pageHeaders = file === join(WEBROOT,'repair-center','index.html') ? {
         ...headers,

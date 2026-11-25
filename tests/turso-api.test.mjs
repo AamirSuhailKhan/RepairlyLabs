@@ -162,6 +162,62 @@ test('createCloudApp bootstraps OWNER_EMAIL, signs in via email, manages team em
     assert.equal(track.status, 200);
     assert.equal(track.json.record.model, 'iPhone 15');
 
+    // Public customer account registration with any email ID & strict isolation from /admin and other customers
+    const reg = await callApp(handler, 'POST', '/api/customer/register', {
+      name: 'Ravi Sharma',
+      email: 'ravi.sharma@gmail.com',
+      phone: '9876501234',
+      password: 'CustomerPass123!'
+    });
+    assert.equal(reg.status, 201);
+    assert.equal(reg.json.email, 'ravi.sharma@gmail.com');
+    const custCookie = reg.headers['Set-Cookie'].split(';')[0];
+    const custCsrf = reg.json.csrf;
+
+    // Customer cannot access /admin/overview
+    const blockedAdmin = await callApp(handler, 'GET', '/api/admin/overview', undefined, { cookie: custCookie });
+    assert.equal(blockedAdmin.status, 401);
+
+    // Duplicate email rejected
+    const dupReg = await callApp(handler, 'POST', '/api/customer/register', {
+      name: 'Another User',
+      email: 'RAVI.SHARMA@gmail.com',
+      password: 'CustomerPass123!'
+    });
+    assert.equal(dupReg.status, 409);
+
+    // Customer creates a booking while signed in (auto-linked to email) and sees only their own booking
+    const custBooking = await callApp(handler, 'POST', '/api/bookings', {
+      name: 'Ravi Sharma',
+      phone: '9876501234',
+      brand: 'Samsung',
+      model: 'Galaxy S24',
+      issue: 'Screen & display repair',
+      method: 'Visit workshop',
+      locality: 'Lanka',
+      consent: true
+    }, { cookie: custCookie });
+    assert.equal(custBooking.status, 201);
+
+    const myReqs = await callApp(handler, 'GET', '/api/customer/requests', undefined, { cookie: custCookie });
+    assert.equal(myReqs.status, 200);
+    assert.equal(myReqs.json.repairs.length, 1);
+    assert.equal(myReqs.json.repairs[0].model, 'Galaxy S24');
+
+    // Logout requires CSRF and clears session
+    const logoutBad = await callApp(handler, 'POST', '/api/customer/logout', {}, { cookie: custCookie });
+    assert.equal(logoutBad.status, 403);
+    const logoutOk = await callApp(handler, 'POST', '/api/customer/logout', {}, { cookie: custCookie, 'x-csrf-token': custCsrf });
+    assert.equal(logoutOk.status, 200);
+
+    // Login again with registered email
+    const custLogin = await callApp(handler, 'POST', '/api/customer/login', {
+      email: 'ravi.sharma@gmail.com',
+      password: 'CustomerPass123!'
+    });
+    assert.equal(custLogin.status, 200);
+    assert.equal(custLogin.json.name, 'Ravi Sharma');
+
     syncDb.close();
   } finally {
     rmSync(dir, { recursive: true, force: true });
