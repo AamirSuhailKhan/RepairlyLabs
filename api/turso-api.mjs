@@ -678,6 +678,14 @@ export function createCloudApp({ env = process.env, dbOverride = null } = {}) {
       err(404, 'Admin endpoint not found.');
     }
 
+    if (pathname === '/api/extended/availability' && method === 'GET') {
+      return ok(res, [
+        { slot: 'Morning', remaining: null },
+        { slot: 'Afternoon', remaining: null },
+        { slot: 'Evening', remaining: null }
+      ]);
+    }
+
     if (pathname.startsWith('/api/repair-center/')) {
       return handleRepairCenterCloud(db, req, res, url, { auth });
     }
@@ -784,6 +792,27 @@ async function handlePartInquiries(db, req, res, url, { auth }) {
     return ok(res, { ...view(r), events });
   }
 
+  if (path === '/decision' && method === 'POST') {
+    limit(req, 'part-inquiry-decision', 30, 3600000);
+    const b = await bodyJson(req);
+    const decision = trim(b.decision, 10);
+    if (!['accept', 'decline'].includes(decision)) err(400, 'Choose accept or decline.');
+    const ref = safeRef(b.ref), token = trim(b.access, 200);
+    const changed = await db.tx(async () => {
+      const r = await db.get('SELECT * FROM rl_part_inquiries WHERE ref=?', ref);
+      if (!r || !/^[A-Za-z0-9_-]{43}$/.test(token) || !safeEqual(r.token_hash, digest(token))) err(404, 'Request not found or access code invalid.');
+      if (r.status === 'accepted' && decision === 'accept') return view(r);
+      if (r.status === 'declined' && decision === 'decline') return view(r);
+      if (r.status !== 'quoted') err(409, 'This quote is not awaiting a decision.');
+      if (r.quote_valid_until && new Date(r.quote_valid_until + 'T23:59:59+05:30').getTime() < Date.now()) err(409, 'This quote has expired. Please request an updated quote.');
+      const nextStatus = decision === 'accept' ? 'accepted' : 'declined';
+      await db.run('UPDATE rl_part_inquiries SET status=?,customer_decision_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE ref=?', nextStatus, r.ref);
+      await db.run('INSERT INTO rl_part_inquiry_events(ref,actor,action,note) VALUES(?,?,?,?)', r.ref, 'customer', nextStatus, '');
+      return view(await db.get('SELECT * FROM rl_part_inquiries WHERE ref=?', r.ref));
+    });
+    return ok(res, changed);
+  }
+
   if (path === '/admin/overview' && method === 'GET') {
     const a = await auth(db, req);
     if (!['owner', 'manager'].includes(a.permission)) err(403, 'Owner or manager access required.');
@@ -796,6 +825,56 @@ async function handlePartInquiries(db, req, res, url, { auth }) {
     const summary = await db.all('SELECT status,COUNT(*) n FROM rl_part_inquiries GROUP BY status');
     const unread = (await db.get('SELECT COUNT(*) n FROM rl_part_inquiries WHERE read_at IS NULL')).n;
     return ok(res, { items, total, page, page_size: 50, summary: Object.fromEntries(summary.map(x => [x.status, x.n])), unread, overdue: 0, server_time: new Date().toISOString() });
+  }
+
+  const match = path.match(/^\/admin\/([A-Z0-9-]+)$/);
+  if (match) {
+    const actor = await auth(db, req);
+    if (!['owner', 'manager'].includes(actor.permission)) err(403, 'Owner or manager access required.');
+    const ref = safeRef(match[1]);
+    if (method === 'GET') {
+      const result = await db.tx(async () => {
+        const r = await db.get('SELECT * FROM rl_part_inquiries WHERE ref=?', ref);
+        if (!r) err(404, 'Parts request not found.');
+        if (!r.read_at) await db.run('UPDATE rl_part_inquiries SET read_at=CURRENT_TIMESTAMP WHERE ref=?', ref);
+        const updated = await db.get('SELECT * FROM rl_part_inquiries WHERE ref=?', ref);
+        const events = await db.all('SELECT actor,action,note,created_at FROM rl_part_inquiry_events WHERE ref=? ORDER BY id DESC', ref);
+        return { ...updated, events };
+      });
+      const photo = await db.get('SELECT image_data FROM rl_part_inquiry_photos WHERE ref=?', ref);
+      result.image = photo?.image_data || null;
+      delete result.token_hash; delete result.key_hash; delete result.fingerprint;
+      return ok(res, result);
+    }
+    if (method === 'PATCH') {
+      const b = await bodyJson(req);
+      const status = trim(b.status, 30), availability = trim(b.availability, 30);
+      if (!['reviewing', 'quoted', 'unavailable', 'closed'].includes(status)) err(400, 'Invalid staff status.');
+      if (!['checking', 'in_stock', 'sourcing', 'unavailable'].includes(availability)) err(400, 'Invalid availability.');
+      const validUntil = trim(b.quote_valid_until, 10), eta = trim(b.eta, 90), note = trim(b.quote_note, 1000);
+      if (validUntil && (!/^\d{4}-\d{2}-\d{2}$/.test(validUntil) || !Number.isFinite(Date.parse(validUntil)) || new Date(validUntil + 'T00:00:00Z').toISOString().slice(0, 10) !== validUntil)) err(400, 'Invalid quote expiry date.');
+      if (validUntil && new Date(validUntil + 'T23:59:59+05:30').getTime() < Date.now()) err(400, 'Quote expiry must be in the future.');
+      const price = Number(b.price_rupees), delivery = Number(b.delivery_rupees ?? 0);
+      if (status === 'quoted') {
+        if (!['in_stock', 'sourcing'].includes(availability)) err(400, 'Specify whether the part is in stock or being sourced.');
+        if (!Number.isSafeInteger(price) || price <= 0 || price > 10000000) err(400, 'Enter a positive unit price in rupees.');
+      }
+      if (!Number.isSafeInteger(delivery) || delivery < 0 || delivery > 100000) err(400, 'Invalid delivery charges.');
+      const changed = await db.tx(async () => {
+        const existing = await db.get('SELECT * FROM rl_part_inquiries WHERE ref=?', ref);
+        if (!existing) err(404, 'Request not found.');
+        if (['accepted', 'closed'].includes(existing.status)) err(409, 'Accepted or closed requests cannot be edited.');
+        if (status === 'quoted' && existing.method === 'Workshop collection' && delivery > 0) err(400, 'Delivery charges are not applicable for workshop collection.');
+        if (status === 'unavailable' && availability !== 'unavailable') err(400, 'Set availability to unavailable.');
+        await db.run(
+          'UPDATE rl_part_inquiries SET status=?,availability=?,price_paise=?,delivery_paise=?,eta=?,quote_note=?,quote_valid_until=?,replied_by=?,replied_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP,read_at=COALESCE(read_at,CURRENT_TIMESTAMP) WHERE ref=?',
+          status, availability, status === 'quoted' ? price * 100 : null, status === 'quoted' ? delivery * 100 : 0, eta, note, status === 'quoted' ? validUntil : '', actor.username, ref
+        );
+        await db.run('INSERT INTO rl_part_inquiry_events(ref,actor,action,note) VALUES(?,?,?,?)', ref, actor.username, status, note);
+        return view(await db.get('SELECT * FROM rl_part_inquiries WHERE ref=?', ref));
+      });
+      return ok(res, changed);
+    }
   }
 
   err(404, 'Parts enquiry route not found.');

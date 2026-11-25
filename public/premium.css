@@ -94,7 +94,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible,input:focus-visible,s
 .process-preview-line.is-active .process-step-state{color:#e05a39;transform:translateX(2px)}
 .process-card-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 22px;background:#f4f7f5;border-top:1px solid #e8efeb;color:#667f80;font-size:.6rem;letter-spacing:.05em;font-weight:800}
 .process-footer-meta{min-width:0}
-.process-card-cta{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;background:#102231;color:#fff;font-size:.73rem;font-weight:750;letter-spacing:-.01em;text-transform:none;white-space:nowrap;text-decoration:none;transition:background .2s ease,transform .2s ease}
+.process-card-cta{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;background:#292320;color:#fff;font-size:.73rem;font-weight:750;letter-spacing:-.01em;text-transform:none;white-space:nowrap;text-decoration:none;transition:background .2s ease,transform .2s ease}
 .process-card-cta:hover{background:#f46849;color:#fff;transform:translateX(2px)}
 .hero-editorial-note{display:flex;align-items:center;gap:10px;position:absolute;right:0;bottom:0;z-index:3;padding:12px 18px;background:#4a3b34;border:1px solid rgba(255,255,255,.14);color:#effbf7;border-radius:13px;box-shadow:0 20px 45px rgba(0,0,0,.35);font-size:.8rem;font-weight:700;animation:rl-levitate 7s -2s ease-in-out infinite}
 .hero-editorial-note svg{color:#9cd9c6;flex:none}
@@ -167,7 +167,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible,input:focus-visible,s
 .btn:active{transform:translateY(0) scale(.985)}
 .btn-primary{background:#f46849;box-shadow:0 12px 25px #f4684925}
 .btn-primary:hover{background:#f87b5c;box-shadow:0 16px 32px #f4684935}
-.btn-dark{background:#0d2737}
+.btn-dark{background:#292320}
 .page-hero{padding-block:158px 79px;background:radial-gradient(ellipse at 85% 40%,#4a3b34,#352d29 55%,#292320)}
 .page-hero h1{font-size:clamp(2.75rem,4.95vw,5rem)}
 .page-hero p{line-height:1.82}

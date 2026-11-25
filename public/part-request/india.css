@@ -1,5 +1,5 @@
 /* Nationwide parts enquiry — human-first, zero sample products or listing prices */
-:root{--coral:#f86d4b;--navy:#0b1e30;--bg:#faf9f6;--line:#e6e8e7;--muted:#687b89}
+:root{--coral:#f86d4b;--navy:#292320;--bg:#faf9f6;--line:#e6e8e7;--muted:#687b89}
 body{background:var(--bg)}html{scroll-padding-top:100px}
 .site-header{background:#352d29;border-bottom:1px solid #ffffff25;box-shadow:0 9px 28px rgba(0,14,27,.18)}
 .top-links a{font-size:.82rem;white-space:nowrap}
@@ -14,7 +14,7 @@ body{background:var(--bg)}html{scroll-padding-top:100px}
 .india-request-hero .hero-inner{grid-template-columns:minmax(0,1.2fr) minmax(340px,.8fr);gap:clamp(40px,5vw,82px);padding:96px 0 105px}
 .india-request-hero h1{font-size:clamp(3.3rem,5.4vw,5.6rem);letter-spacing:-.064em;line-height:1.06;margin:24px 0 25px;max-width:770px}
 .india-request-hero h1 strong{color:#ff9975}
-.india-request-hero p{line-height:1.82;color:#c5d4de;max-width:650px}
+.india-request-hero p{line-height:1.82;color:#d8ccc5;max-width:650px}
 .india-request-hero .eyebrow{color:#ffb49f;letter-spacing:.17em}
 .india-request-hero .hero-actions{margin-top:32px}
 .india-request-hero .trustline span{border-color:#ffffff26;color:#d4e6ea;background:#ffffff0b}
@@ -50,17 +50,17 @@ body{background:var(--bg)}html{scroll-padding-top:100px}
 .consent{border-radius:13px;padding:16px!important;background:#f6f8f8;border:1px solid #e6ebed}
 #submit-enquiry{padding:15px 26px;min-height:51px;box-shadow:0 13px 29px rgba(248,109,75,.2)}
 .side-panel{position:sticky;top:95px;align-self:start}
-.aside-card{border-radius:23px;background:#10283a;color:#fff;border:1px solid #284153;padding:29px;box-shadow:0 21px 50px rgba(9,31,48,.11)}
+.aside-card{border-radius:23px;background:linear-gradient(155deg,#352d29,#292320);color:#fff;border:1px solid #4a3b34;padding:29px;box-shadow:0 21px 50px rgba(41,35,32,.14)}
 .aside-card h3{color:#fff;font-size:1.5rem}
 .mini-step{border-top:1px solid #ffffff26;padding-block:19px;gap:16px}
 .mini-number{background:#ffffff13;color:#fba183;border:1px solid #ffffff20;border-radius:10px;min-width:43px;height:43px;display:grid;place-items:center;font-weight:800;font-family:'Space Grotesk'}
 .mini-step b{color:#fff}
-.mini-step p{color:#bdd0d9;line-height:1.6;font-size:.8rem}
-.side-note{background:#fff3ec;border:1px solid #f3dccc;border-radius:20px;color:#254053;padding:22px;margin-top:16px}
+.mini-step p{color:#d8ccc5;line-height:1.6;font-size:.8rem}
+.side-note{background:#fff3ec;border:1px solid #f3dccc;border-radius:20px;color:#292320;padding:22px;margin-top:16px}
 .side-note p{color:#647586;line-height:1.7}
 #status-check{padding-top:18px}
-#status-check .panel{box-shadow:0 14px 50px rgba(15,37,51,.07)}
-.site-footer{background:#0b1e30;color:#bdcdd6;border-top:0}
+#status-check .panel{box-shadow:0 14px 50px rgba(41,35,32,.07)}
+.site-footer{background:#292320;color:#d6c9c2;border-top:0}
 .site-footer a{color:#e4eef3}
 .btn-primary{background:#f56c4a}
 .btn-primary:hover{background:#e85f3f}

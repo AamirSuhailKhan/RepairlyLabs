@@ -1,12 +1,12 @@
 /* ===== RepairlyLabs — Repair Center (design-synced with main site) ===== */
 
 :root{
-  --ink:#e4edf3;--ink2:#ffffff;--dark:#07121d;--dark2:#0d2030;
+  --ink:#e8ded8;--ink2:#ffffff;--dark:#1e1917;--dark2:#2f2622;
   --orange:#fb6948;--orange2:#ff8d5f;--mint:#8ce7d5;
-  --cream:#faf8f4;--bg:#08121f;--bg-card:rgba(12, 25, 38, 0.92);
-  --slate:#8ba1b0;--slate-dark:#596d7c;
-  --line:rgba(255, 255, 255, 0.1);--line-focus:rgba(251, 105, 72, 0.5);
-  --shadow:0 20px 60px rgba(0, 0, 0, 0.5);
+  --cream:#faf8f4;--bg:#292320;--bg-card:rgba(47, 38, 34, 0.94);
+  --slate:#b4a298;--slate-dark:#7d6b61;
+  --line:rgba(255, 255, 255, 0.12);--line-focus:rgba(251, 105, 72, 0.5);
+  --shadow:0 20px 60px rgba(0, 0, 0, 0.45);
   --accent:#fb6948;
   --font:'DM Sans',system-ui,Arial,sans-serif;
   --display:'Space Grotesk',system-ui,sans-serif;
@@ -18,8 +18,8 @@ html{scroll-behavior:smooth}
 body{
   margin:0;padding-top:114px;
   color:var(--ink);
-  background:radial-gradient(ellipse 70% 50% at 50% 0%, #112738 0%, #08121f 65%, #050b13 100%) fixed;
-  background-color:#08121f;
+  background:radial-gradient(ellipse 70% 50% at 50% 0%, #3d312b 0%, #292320 65%, #1e1917 100%) fixed;
+  background-color:#292320;
   font-family:var(--font);
   -webkit-font-smoothing:antialiased;
   min-height:100vh;
@@ -47,7 +47,7 @@ svg{display:inline-block;vertical-align:middle;flex-shrink:0}
   height:70px;
   border-radius:9999px;
   transition:all .25s cubic-bezier(.4,0,.2,1);
-  background:rgba(8, 18, 30, 0.88);
+  background:rgba(41, 35, 32, 0.92);
   border:1px solid rgba(255, 255, 255, 0.14);
   backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
   box-shadow:0 14px 40px rgba(0, 0, 0, 0.45);
@@ -57,7 +57,7 @@ svg{display:inline-block;vertical-align:middle;flex-shrink:0}
 }
 .navbar.scrolled{
   top:12px;height:62px;
-  background:rgba(7, 16, 26, 0.96);
+  background:rgba(30, 25, 23, 0.96);
   border-color:rgba(255, 255, 255, 0.22);
   box-shadow:0 16px 45px rgba(0, 0, 0, 0.55);
 }
@@ -103,7 +103,7 @@ svg{display:inline-block;vertical-align:middle;flex-shrink:0}
   display:none;flex-direction:column;gap:0;
   position:fixed;top:84px;left:0;right:0;margin:0 auto;
   width:min(940px, calc(100% - 24px));
-  background:#0b1a28f5;
+  background:#292320f5;
   backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
   border:1px solid rgba(255,255,255,0.16);
   border-radius:20px;
@@ -183,7 +183,7 @@ input,textarea,select{
   width:100%;padding:12px 14px;
   border:1.5px solid rgba(255, 255, 255, 0.16);
   border-radius:12px;
-  background:rgba(6, 15, 24, 0.85);
+  background:rgba(30, 24, 21, 0.85);
   color:#ffffff;
   font-size:.9rem;
   transition:border-color .2s, box-shadow .2s;
@@ -193,7 +193,7 @@ input:focus,textarea:focus,select:focus{
   border-color:var(--orange);
   box-shadow:0 0 0 3px rgba(251, 105, 72, 0.25);
 }
-select option{background:#0a1826;color:#ffffff}
+select option{background:#292320;color:#ffffff}
 input[type=checkbox]{width:auto;accent-color:var(--orange)}
 textarea{resize:vertical;min-height:82px}
 
@@ -225,14 +225,14 @@ textarea{resize:vertical;min-height:82px}
   overflow:auto;
   border-radius:14px;
   border:1px solid var(--line);
-  background:rgba(7, 16, 26, 0.6);
+  background:rgba(30, 25, 23, 0.6);
 }
 table{width:100%;border-collapse:collapse;text-align:left;font-size:.88rem}
 td,th{padding:13px 15px;border-bottom:1px solid rgba(255, 255, 255, 0.08);vertical-align:top}
 th{
-  color:#9ab2c0;font-size:.74rem;font-weight:700;
+  color:#d2c5bd;font-size:.74rem;font-weight:700;
   text-transform:uppercase;letter-spacing:.06em;
-  background:rgba(14, 28, 43, 0.95);
+  background:rgba(53, 45, 41, 0.95);
 }
 td{color:#d5e2eb}
 tr:hover td{background:rgba(255, 255, 255, 0.03)}
@@ -273,7 +273,7 @@ td button{white-space:nowrap;min-height:34px;padding:7px 14px;font-size:.82rem}
 /* ── Toast ── */
 #toast{
   position:fixed;bottom:24px;right:24px;max-width:calc(100% - 48px);
-  background:#0a1826;color:#fff;border-radius:14px;
+  background:#292320;color:#fff;border-radius:14px;
   padding:14px 18px;display:none;z-index:999;
   box-shadow:0 12px 40px rgba(0,0,0,.5);font-size:.9rem;
   border:1px solid rgba(255, 255, 255, 0.16);

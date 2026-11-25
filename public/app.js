@@ -39,7 +39,7 @@ function bindHeroJourney(){
  const card=wrap.querySelector('.hero-process-card'), rows=[...wrap.querySelectorAll('[data-hero-step]')];
  const ico=q('hero-step-icon'),title=q('hero-step-title'),index=q('hero-step-index'),dynamic=q('hero-step-dynamic'),eyebrow=q('hero-step-eyebrow'),heading=q('hero-step-heading'),desc=q('hero-step-desc'),footer=q('hero-footer-text'),cta=q('hero-step-cta'),secondary=q('hero-secondary-cta'),note=q('hero-note-text'),bar=q('hero-progress-bar'),announcement=q('hero-step-announcement');
  const motion=window.matchMedia('(prefers-reduced-motion: reduce)'), life=new AbortController(), duration=1500;
- let active=0,elapsed=0,last=null,raf=0,animation=null;
+ let active=0,elapsed=0,last=null,raf=0,animation=null,visible=true;
  const on=(target,event,fn)=>target?.addEventListener(event,fn,{signal:life.signal});
  const paint=()=>{if(bar)bar.style.transform=`scaleX(${Math.min(elapsed/duration,1)})`;};
  function selectStep(next,manual=false,animate=true){
@@ -62,7 +62,7 @@ function bindHeroJourney(){
  }
  function tick(now){
   if(!wrap.isConnected){cleanup();return;}
-  const blocked=document.hidden||document.documentElement.classList.contains('rl-intro-armed');
+  const blocked=!visible||document.hidden||document.documentElement.classList.contains('rl-intro-armed');
   if(blocked)last=null;
   else{if(last!==null)elapsed+=Math.min(now-last,100);last=now;if(elapsed>=duration)selectStep(active+1);else paint();}
   raf=requestAnimationFrame(tick);
