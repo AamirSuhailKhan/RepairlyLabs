@@ -133,7 +133,7 @@ export function createCustomerAuth({
       const pass = String(b.password || '');
       const acc = await db.get('SELECT * FROM customer_accounts WHERE email = ? COLLATE NOCASE', email);
       if (!acc || pass.length > 150 || !verifyPassword(pass, acc.password_hash)) {
-        err(401, 'Incorrect email or password.');
+        err(401, 'Incorrect email or password. First time here? Click "Create account" to register first.');
       }
       const { cookieHeader, payload } = await issueSession(req, acc);
       return respond(res, 200, payload, { 'Set-Cookie': cookieHeader });

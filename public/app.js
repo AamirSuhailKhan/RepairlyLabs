@@ -180,11 +180,12 @@ async function accountRoute(){
      <button class="btn btn-primary" type="submit" style="width:100%;margin-top:18px">Create account ${icon('arrow')}</button>
     </form>`:`<form class="form-panel" data-form="customer-login">
      <h3>Sign in to your account</h3>
-     <p class="form-intro">Enter the email ID and password you registered with, or switch to Create account.</p>
+     <p class="form-intro">First time here? Click <strong>Create account</strong> first — your Gmail/email password won't work until you register on this site.</p>
      <div class="field"><label for="cust-login-email">Email ID *</label><input id="cust-login-email" name="email" type="email" maxlength="120" autocomplete="email" required placeholder="you@gmail.com"></div>
      <div class="field" style="margin-top:14px"><label for="cust-login-pass">Password *</label><input id="cust-login-pass" name="password" type="password" minlength="1" maxlength="150" autocomplete="current-password" required></div>
      <div id="cust-error" role="alert" class="access-error" hidden style="margin-top:14px"></div>
      <button class="btn btn-primary" type="submit" style="width:100%;margin-top:18px">Sign in ${icon('arrow')}</button>
+     <button type="button" class="access-help" data-action="cust-mode" data-mode="register" style="margin-top:14px">New user? Create an account first →</button>
     </form>`}
    </div></section>`,'/account');
   return;
