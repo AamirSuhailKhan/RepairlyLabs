@@ -1,9 +1,14 @@
 tests/
+test-results/
 scripts/
 deploy/
+docs/
+data/
+PREMIUM-PREVIEWS/
+REPAIR-FIRST-PREVIEWS/
+navbar-fix-backup-*/
 .git/
-.env.example
-.env.addon.example
+.env*
 *.log
 *.txt
 *.vbs
