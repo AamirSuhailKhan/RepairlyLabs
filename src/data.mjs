@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync, existsSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomBytes, scryptSync, timingSafeEqual, createHash } from 'node:crypto';
+import { createTursoClient, wrapDb } from './turso.mjs';
 
 const DEFAULT_SETTINGS = {
   business_name: 'RepairlyLabs', tagline: 'Care for every connection.', city: 'Varanasi',
@@ -66,17 +67,7 @@ const PRODUCT_SEED = [
  ['Display Assembly','Infinix','Infinix Hot 50','Display & Touch','Compatible option',1899,7,'display'],
  ['Back Panel Replacement','Lava','Lava Agni 2','Back Panel','Compatible option',899,5,'panel']
 ];
-export function openDatabase(dir = process.env.DATA_DIR || (process.env.VERCEL ? '/tmp/data' : join(process.cwd(),'data'))) {
- mkdirSync(dir,{recursive:true});
- const dbPath = join(dir,'repairlylabs.sqlite');
- if (!existsSync(dbPath) && process.env.VERCEL) {
-  const seedFile = join(process.cwd(),'data','repairlylabs.sqlite');
-  if (existsSync(seedFile)) {
-   try { copyFileSync(seedFile, dbPath); } catch {}
-  }
- }
- const db = new DatabaseSync(dbPath);
- db.exec(`PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;
+const BASE_SCHEMA_SQL = `
  CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS devices(id INTEGER PRIMARY KEY, brand TEXT NOT NULL, model TEXT NOT NULL, UNIQUE(brand,model));
  CREATE INDEX IF NOT EXISTS idx_devices_brand ON devices(brand);
@@ -92,7 +83,20 @@ export function openDatabase(dir = process.env.DATA_DIR || (process.env.VERCEL ?
  CREATE TABLE IF NOT EXISTS admins(username TEXT PRIMARY KEY,password_hash TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
  CREATE TABLE IF NOT EXISTS sessions(token_hash TEXT PRIMARY KEY,username TEXT NOT NULL REFERENCES admins(username),csrf TEXT NOT NULL,expires_at INTEGER NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
  CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,username TEXT NOT NULL,action TEXT NOT NULL,details TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
- CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY,name TEXT NOT NULL,applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);`);
+ CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY,name TEXT NOT NULL,applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+`;
+
+export function openDatabase(dir = process.env.DATA_DIR || (process.env.VERCEL ? '/tmp/data' : join(process.cwd(),'data'))) {
+ mkdirSync(dir,{recursive:true});
+ const dbPath = join(dir,'repairlylabs.sqlite');
+ if (!existsSync(dbPath) && process.env.VERCEL) {
+  const seedFile = join(process.cwd(),'data','repairlylabs.sqlite');
+  if (existsSync(seedFile)) {
+   try { copyFileSync(seedFile, dbPath); } catch {}
+  }
+ }
+ const db = new DatabaseSync(dbPath);
+ db.exec(`PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;\n${BASE_SCHEMA_SQL}`);
  // Non-destructive schema migration for installations created before consent logging.
  for(const table of ['bookings','orders','contacts']){
   if(!db.prepare(`PRAGMA table_info(${table})`).all().some(c=>c.name==='consent_at')) db.exec(`ALTER TABLE ${table} ADD COLUMN consent_at TEXT NOT NULL DEFAULT ''`);
@@ -104,6 +108,78 @@ export function openDatabase(dir = process.env.DATA_DIR || (process.env.VERCEL ?
  putMigration.run(1,'initial_schema_and_consent');
  putMigration.run(2,'booking_contact_preferences');
  seed(db); db.prepare("UPDATE settings SET value=? WHERE key='terms' AND value=?").run(DEFAULT_SETTINGS.terms,'Parts are confirmed for compatibility, stock, and final pricing before fulfillment. Repair quotations follow inspection. No payment is collected online.');return db;
+}
+
+export async function openAppDatabase({ dir, env = process.env } = {}) {
+ const tursoUrl = env.TURSO_DATABASE_URL || env.LIBSQL_URL;
+ if (!tursoUrl) {
+  return wrapDb(openDatabase(dir));
+ }
+ const db = createTursoClient({
+  url: tursoUrl,
+  authToken: env.TURSO_AUTH_TOKEN || env.LIBSQL_AUTH_TOKEN || ''
+ });
+ let m2 = null;
+ try { m2 = await db.get('SELECT 1 AS ok FROM schema_migrations WHERE version=2'); } catch {}
+ if (!m2) {
+  await db.exec(`PRAGMA foreign_keys = ON;\n${BASE_SCHEMA_SQL}`);
+  for (const table of ['bookings','orders','contacts']) {
+   const cols = await db.all(`PRAGMA table_info(${table})`);
+   if (!cols.some(c => c.name === 'consent_at')) await db.exec(`ALTER TABLE ${table} ADD COLUMN consent_at TEXT NOT NULL DEFAULT ''`);
+  }
+  const bookingCols = new Set((await db.all('PRAGMA table_info(bookings)')).map(c => c.name));
+  for (const [key, definition] of Object.entries({email:"TEXT NOT NULL DEFAULT ''",pin:"TEXT NOT NULL DEFAULT ''",slot:"TEXT NOT NULL DEFAULT ''",whatsapp:'INTEGER NOT NULL DEFAULT 0'})) {
+   if (!bookingCols.has(key)) await db.exec(`ALTER TABLE bookings ADD COLUMN ${key} ${definition}`);
+  }
+  await db.run('INSERT OR IGNORE INTO schema_migrations(version,name) VALUES(?,?)', 1, 'initial_schema_and_consent');
+  await db.run('INSERT OR IGNORE INTO schema_migrations(version,name) VALUES(?,?)', 2, 'booking_contact_preferences');
+ }
+ await seedAsync(db);
+ return db;
+}
+
+async function seedAsync(db) {
+ const sCount = await db.get('SELECT COUNT(*) AS n FROM settings');
+ if (!sCount || sCount.n < Object.keys(DEFAULT_SETTINGS).length) {
+  await db.tx(async () => {
+   for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
+    await db.run('INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)', key, value);
+   }
+  });
+ }
+ const dCount = await db.get('SELECT COUNT(*) AS n FROM devices');
+ if (!dCount || dCount.n === 0) {
+  await db.tx(async () => {
+   const allPairs = [];
+   for (const [brand, models] of Object.entries(CATALOG)) {
+    for (const model of models) allPairs.push([brand, model]);
+   }
+   for (let i = 0; i < allPairs.length; i += 40) {
+    const slice = allPairs.slice(i, i + 40);
+    const placeholders = slice.map(() => '(?,?)').join(',');
+    await db.run(`INSERT OR IGNORE INTO devices(brand,model) VALUES ${placeholders}`, ...slice.flat());
+   }
+  });
+ }
+ const svCount = await db.get('SELECT COUNT(*) AS n FROM services');
+ if (!svCount || svCount.n === 0) {
+  await db.tx(async () => {
+   for (let i = 0; i < SERVICE_SEED.length; i++) {
+    await db.run('INSERT OR IGNORE INTO services(slug,title,description,icon,tag,sort_order) VALUES(?,?,?,?,?,?)', ...SERVICE_SEED[i], i);
+   }
+  });
+ }
+ const pCount = await db.get('SELECT COUNT(*) AS n FROM products');
+ if (!pCount || pCount.n === 0) {
+  await db.tx(async () => {
+   for (let i = 0; i < PRODUCT_SEED.length; i++) {
+    const p = PRODUCT_SEED[i];
+    await db.run('INSERT OR IGNORE INTO products(sku,name,brand,model,category,grade,price,stock,featured,sample,image_kind,description) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
+     'DEMO-'+String(i+1).padStart(3,'0'), p[0], p[1], p[2], p[3], p[4], p[5], p[6], Number(i<6), 1, p[7],
+     'Illustrative spare-part listing. Staff must verify exact device variant, component grade, price, stock and warranty before confirmation.');
+   }
+  });
+ }
 }
 function seed(db) {
  const putSetting=db.prepare('INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)');
@@ -120,6 +196,7 @@ function seed(db) {
  }
 }
 export function getSettings(db){return Object.fromEntries(db.prepare('SELECT key,value FROM settings').all().map(({key,value})=>[key,value]));}
+export async function getSettingsAsync(db){return Object.fromEntries((await wrapDb(db).all('SELECT key,value FROM settings')).map(({key,value})=>[key,value]));}
 export function passwordHash(password){const salt=randomBytes(16).toString('hex'); const hash=scryptSync(password,salt,64).toString('hex'); return `${salt}:${hash}`;}
 export function verifyPassword(password,stored){try {const [salt,hex]=stored.split(':'); const a=scryptSync(password,salt,64), b=Buffer.from(hex,'hex');return a.length===b.length&&timingSafeEqual(a,b);}catch{return false;}}
 export function hashToken(token){return createHash('sha256').update(token).digest('hex');}
