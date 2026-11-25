@@ -138,11 +138,11 @@ export async function openAppDatabase({ dir, env = process.env } = {}) {
   await db.exec(`PRAGMA foreign_keys = ON;\n${BASE_SCHEMA_SQL}`);
   for (const table of ['bookings','orders','contacts']) {
    const cols = await db.all(`PRAGMA table_info(${table})`);
-   if (!cols.some(c => c.name === 'consent_at')) await db.exec(`ALTER TABLE ${table} ADD COLUMN consent_at TEXT NOT NULL DEFAULT ''`);
+   if (!cols.some(c => c.name === 'consent_at')) { try { await db.exec(`ALTER TABLE ${table} ADD COLUMN consent_at TEXT NOT NULL DEFAULT ''`); } catch {} }
   }
   const bookingCols = new Set((await db.all('PRAGMA table_info(bookings)')).map(c => c.name));
   for (const [key, definition] of Object.entries({email:"TEXT NOT NULL DEFAULT ''",pin:"TEXT NOT NULL DEFAULT ''",slot:"TEXT NOT NULL DEFAULT ''",whatsapp:'INTEGER NOT NULL DEFAULT 0'})) {
-   if (!bookingCols.has(key)) await db.exec(`ALTER TABLE bookings ADD COLUMN ${key} ${definition}`);
+   if (!bookingCols.has(key)) { try { await db.exec(`ALTER TABLE bookings ADD COLUMN ${key} ${definition}`); } catch {} }
   }
   await db.run('INSERT OR IGNORE INTO schema_migrations(version,name) VALUES(?,?)', 1, 'initial_schema_and_consent');
   await db.run('INSERT OR IGNORE INTO schema_migrations(version,name) VALUES(?,?)', 2, 'booking_contact_preferences');
